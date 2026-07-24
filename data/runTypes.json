@@ -39,5 +39,84 @@
             ["wind", "water", "fire", "earth"]
         ],
         "allowSpecial": true
+    },
+    {
+        "name": "Geyser",
+        "description": "Favors Water and Earth jobs by mixing in the Wind pool early and the Fire pool late.",
+        "crystals": [
+            ["wind", "water"],
+            ["wind", "water", "earth"],
+            ["water", "fire", "earth"],
+            ["fire", "earth"]
+        ]
+    },
+    {
+        "name": "Sirocco",
+        "description": "Favors Wind and Fire jobs by mixing in the Water pool early and the Earth pool late.",
+        "crystals": [
+            ["wind", "fire"],
+            ["wind", "water", "fire"],
+            ["wind", "fire", "earth"],
+            ["fire", "earth"]
+        ]
+    },
+    {
+        "name": "Onsen",
+        "description": "Leans heavily toward Water and Fire jobs.",
+        "crystals": [
+            ["wind", "water"],
+            ["water", "fire"],
+            ["water", "fire", "earth"],
+            ["water", "fire", "earth"]
+        ]
+    },
+    {
+        "name": "Haboob",
+        "description": "Leans heavily toward Wind and Earth jobs.",
+        "crystals": [
+            ["wind", "earth"],
+            ["wind", "water", "earth"],
+            ["wind", "fire", "earth"],
+            ["fire", "earth"]
+        ]
+    },
+    {
+        "name": "Onion",
+        "description": "Draws each job slot from a fixed pool of jobs that originally appeared in Final Fantasy 3. Can only be used with Regular (Normal) runs.",
+        "crystals": [
+            [
+                "black mage",
+                "knight",
+                "thief"
+            ],
+            [
+                "monk",
+                "red mage",
+                "white mage"
+            ],
+            [
+                "bard",
+                "geomancer",
+                "summoner"
+            ],
+            [
+                "dragoon",
+                "ninja",
+                "ranger"
+            ]
+        ]
+    },
+    {
+        "name": "Classic",
+        "description": "Players will only be assigned jobs that were in the original Final Fantasy. Classic runs are always Natural runs, meaning the character can only use their assigned job. Forces allow duplicates, and does not allow picking a job set.",
+        "crystals":[
+            ["knight", "monk", "thief", "white mage", "black mage", "red mage"],
+            ["knight", "monk", "thief", "white mage", "black mage", "red mage"],
+            ["knight", "monk", "thief", "white mage", "black mage", "red mage"],
+            ["knight", "monk", "thief", "white mage", "black mage", "red mage"]
+        ],
+        "forcesAllowDuplicates": true,
+        "noJobSetSelect": true
     }
+
 ]
