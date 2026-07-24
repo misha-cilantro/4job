@@ -1,0 +1,171 @@
+[
+    {
+        "name": "freelancer",
+        "tags": [
+            "combat",
+            "physical",
+            "special"
+        ]
+    },
+    {
+        "name": "knight",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "monk",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "thief",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "white mage",
+        "tags": [
+            "support",
+            "magic",
+            "rod_breaker"
+        ]
+    },
+    {
+        "name": "black mage",
+        "tags": [
+            "combat",
+            "magic",
+            "rod_breaker"
+        ]
+    },
+    {
+        "name": "blue mage",
+        "tags": [
+            "combat",
+            "support",
+            "magic",
+            "rod_breaker"
+        ]
+    },
+    {
+        "name": "red mage",
+        "tags": [
+            "combat",
+            "support",
+            "magic",
+            "rod_breaker"
+        ]
+    },
+    {
+        "name": "time mage",
+        "tags": [
+            "support",
+            "magic",
+            "rod_breaker"
+        ]
+    },
+    {
+        "name": "summoner",
+        "tags": [
+            "combat",
+            "support",
+            "magic",
+            "rod_breaker"
+        ]
+    },
+    {
+        "name": "berserker",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "mystic knight",
+        "tags": [
+            "combat",
+            "physical",
+            "magic"
+        ]
+    },
+    {
+        "name": "beastmaster",
+        "tags": [
+            "combat",
+            "support",
+            "physical"
+        ]
+    },
+    {
+        "name": "geomancer",
+        "tags": [
+            "combat",
+            "magic"
+        ]
+    },
+    {
+        "name": "ninja",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "ranger",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "bard",
+        "tags": [
+            "support",
+            "magic"
+        ]
+    },
+    {
+        "name": "dragoon",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "dancer",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "samurai",
+        "tags": [
+            "combat",
+            "physical"
+        ]
+    },
+    {
+        "name": "chemist",
+        "tags": [
+            "combat",
+            "support"
+        ]
+    },
+    {
+        "name": "mime",
+        "tags": [
+            "combat",
+            "support",
+            "physical",
+            "magic",
+            "special"
+        ]
+    }
+]

@@ -1,0 +1,43 @@
+[
+    {
+        "name": "Normal",
+        "description": "Each crystal rolls one random job belonging exclusively to its own pool.",
+        "crystals": [
+            "wind",
+            "water",
+            "fire",
+            "earth"
+        ]
+    },
+    {
+        "name": "Typhoon",
+        "description": "Favors earlier jobs by leaving prior pools open as later crystals are unlocked.",
+        "crystals": [
+            "wind",
+            ["wind", "water"],
+            ["wind", "water", "fire"],
+            ["wind", "water", "fire", "earth"]
+        ]
+    },
+    {
+        "name": "Volcano",
+        "description": "Favors later jobs by working backward through the crystal pools.",
+        "crystals": [
+            ["earth", "fire", "water", "wind"],
+            ["earth", "fire", "water"],
+            ["earth", "fire"],
+            "earth"
+        ]
+    },
+    {
+        "name": "Meteor",
+        "description": "Completely randomizes the pools. Any crystal can roll any job pool completely out of order.",
+        "crystals": [
+            ["wind", "water", "fire", "earth"],
+            ["wind", "water", "fire", "earth"],
+            ["wind", "water", "fire", "earth"],
+            ["wind", "water", "fire", "earth"]
+        ],
+        "allowSpecial": true
+    }
+]

@@ -1,0 +1,44 @@
+[
+    {
+        "name": "wind",
+        "jobs": [
+            "knight",
+            "monk",
+            "thief",
+            "white mage",
+            "black mage",
+            "blue mage",
+            "freelancer"
+        ]
+    },
+    {
+        "name": "water",
+        "jobs": [
+            "red mage",
+            "time mage",
+            "summoner",
+            "berserker",
+            "mystic knight",
+            "mime"
+        ]
+    },
+    {
+        "name": "fire",
+        "jobs": [
+            "beastmaster",
+            "geomancer",
+            "ninja",
+            "ranger",
+            "bard"
+        ]
+    },
+    {
+        "name": "earth",
+        "jobs": [
+            "dragoon",
+            "dancer",
+            "samurai",
+            "chemist"
+        ]
+    }
+]

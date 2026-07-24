@@ -1,0 +1,16 @@
+{
+    "name": "Team 750",
+    "description": "Only picks jobs that can break elemental rods or have a similar play style (rods cost 750 gil).",
+    "jobs": [
+        "white mage",
+        "black mage",
+        "blue mage",
+        "time mage",
+        "summoner",
+        "red mage",
+        "geomancer",
+        "bard",
+        "chemist",
+        "dancer"
+    ]
+}
