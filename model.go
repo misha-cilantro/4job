@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -15,6 +16,8 @@ const (
 	stepOptions
 	stepSummary
 )
+
+const none = "(none)"
 
 // newRun returns a fresh wizard in its initial state.
 func newRun() run {
@@ -258,6 +261,7 @@ func (m run) updateOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "enter":
+		m.name = generateName(m)
 		m.step = stepSummary
 	}
 	return m, nil
@@ -288,21 +292,29 @@ func (m run) updateSummary(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m run) viewSummary() string {
 	var b strings.Builder
+
 	b.WriteString("Summary\n\n")
 	b.WriteString(fmt.Sprintf("Run type:        %s\n", m.runType))
+
 	jobSet := m.jobSet
 	if jobSet == "" {
-		jobSet = "(none)"
+		jobSet = none
 	}
+
 	b.WriteString(fmt.Sprintf("Job set:         %s\n", jobSet))
 	b.WriteString(fmt.Sprintf("Allow Duplicates: %t\n", m.allowDuplicates))
 	b.WriteString(fmt.Sprintf("Allow Special:    %t\n", m.allowSpecial))
+
 	if len(m.excludes) == 0 {
 		b.WriteString("Excluded jobs:    (none)\n")
 	} else {
 		b.WriteString(fmt.Sprintf("Excluded jobs:    %s\n", strings.Join(m.excludes, ", ")))
 	}
-	b.WriteString("\n(enter to quit, r to start a new run, esc to go back)")
+
+	b.WriteString(fmt.Sprintf("\nRun folder: %s\n", m.name))
+
+	b.WriteString("\n(enter to write run folder, r to start over, esc to go back)")
+
 	return b.String()
 }
 
@@ -343,4 +355,38 @@ func removeString(list []string, target string) []string {
 		}
 	}
 	return out
+}
+
+func generateName(m run) string {
+	var b strings.Builder
+	b.WriteString(m.runType)
+
+	if m.jobSet != "" && m.jobSet != none {
+		b.WriteString("-")
+		b.WriteString(m.jobSet)
+	}
+
+	if len(m.excludes) == 0 {
+		b.WriteString("-all")
+	} else {
+		b.WriteString(fmt.Sprintf("-excl-%d", len(m.excludes)))
+	}
+
+	b.WriteString("-opt")
+	if !m.allowDuplicates && !m.allowSpecial {
+		b.WriteString("X")
+	}
+
+	if m.allowDuplicates {
+		b.WriteString("D")
+	}
+
+	if m.allowSpecial {
+		b.WriteString("S")
+	}
+
+	t := time.Now()
+	b.WriteString(fmt.Sprintf("-%s", t.Format("20060102150405")))
+
+	return b.String()
 }

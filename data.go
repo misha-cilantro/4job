@@ -25,7 +25,8 @@ var (
 	JobPoolsByName map[string]JobPool
 
 	// RunTypes holds every available run type (Normal, Typhoon, Meteor, ...).
-	RunTypes []RunType
+	RunTypes       []RunType
+	RunTypesByName map[string]RunType
 
 	// JobSets holds every available job set modifier (Team 750, ...).
 	JobSets []JobSet
@@ -51,6 +52,11 @@ func loadData() error {
 	}
 	if err := loadJSON("data/jobSets.json", &JobSets); err != nil {
 		return err
+	}
+
+	RunTypesByName = make(map[string]RunType, len(RunTypes))
+	for _, rt := range RunTypes {
+		RunTypesByName[rt.Name] = rt
 	}
 
 	JobsByName = make(map[string]Job, len(Jobs))
