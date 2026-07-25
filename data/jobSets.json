@@ -2,70 +2,24 @@
     {
         "name": "Team 750",
         "description": "Only picks jobs that can break elemental rods or have a similar play style (rods cost 750 gil).",
-        "jobs": [
-            "white mage",
-            "black mage",
-            "blue mage",
-            "time mage",
-            "summoner",
-            "red mage",
-            "geomancer",
-            "bard",
-            "chemist",
-            "dancer"
+        "pools": [
+            "750"
         ]
     },
     {
         "name": "Team No 750",
         "description": "Only picks jobs that cannot break elemental rods and follow that same non-caster play style (rods cost 750 gil).",
-        "jobs": [
-            "knight",
-            "monk",
-            "thief",
-            "berserker",
-            "mystic knight",
-            "ninja",
-            "ranger",
-            "beastmaster",
-            "dragoon",
-            "samurai"
+        "pools": [
+            "no750"
         ]
     },
     {
         "name": "Team 375",
         "description": "Splits the run down the middle: two jobs are drawn from the Team 750 pool and two from the Team No 750 pool. Forces Allow Duplicates.",
-        "pools": {
-            "750": {
-                "count": 2,
-                "jobs": [
-                    "white mage",
-                    "black mage",
-                    "blue mage",
-                    "time mage",
-                    "summoner",
-                    "red mage",
-                    "geomancer",
-                    "bard",
-                    "chemist",
-                    "dancer"
-                ]
-            },
-            "no750": {
-                "count": 2,
-                "jobs": [
-                    "knight",
-                    "monk",
-                    "thief",
-                    "berserker",
-                    "mystic knight",
-                    "ninja",
-                    "ranger",
-                    "beastmaster",
-                    "dragoon",
-                    "samurai"
-                ]
-            }
-        },
+        "pools": [
+            { "pool": "750", "count": 2 },
+            { "pool": "no750", "count": 2 }
+        ],
         "forcesAllowDuplicates": true
     }
 ]

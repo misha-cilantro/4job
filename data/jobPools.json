@@ -1,0 +1,128 @@
+[
+    {
+        "name": "wind",
+        "description": "Jobs unlocked at the Wind Crystal.",
+        "jobs": [
+            "knight",
+            "monk",
+            "thief",
+            "white mage",
+            "black mage",
+            "blue mage",
+            "freelancer"
+        ]
+    },
+    {
+        "name": "water",
+        "description": "Jobs unlocked at the Water Crystal.",
+        "jobs": [
+            "red mage",
+            "time mage",
+            "summoner",
+            "berserker",
+            "mystic knight",
+            "mime"
+        ]
+    },
+    {
+        "name": "fire",
+        "description": "Jobs unlocked at the Fire Crystal.",
+        "jobs": [
+            "beastmaster",
+            "geomancer",
+            "ninja",
+            "ranger",
+            "bard"
+        ]
+    },
+    {
+        "name": "earth",
+        "description": "Jobs unlocked at the Earth Crystal.",
+        "jobs": [
+            "dragoon",
+            "dancer",
+            "samurai",
+            "chemist"
+        ]
+    },
+    {
+        "name": "750",
+        "description": "Jobs that can break elemental rods or share that caster play style (rods cost 750 gil).",
+        "jobs": [
+            "white mage",
+            "black mage",
+            "blue mage",
+            "time mage",
+            "summoner",
+            "red mage",
+            "geomancer",
+            "bard",
+            "chemist",
+            "dancer"
+        ]
+    },
+    {
+        "name": "no750",
+        "description": "Jobs that cannot break elemental rods and follow that non-caster play style (rods cost 750 gil).",
+        "jobs": [
+            "knight",
+            "monk",
+            "thief",
+            "berserker",
+            "mystic knight",
+            "ninja",
+            "ranger",
+            "beastmaster",
+            "dragoon",
+            "samurai"
+        ]
+    },
+    {
+        "name": "classic",
+        "description": "Classic run pool: jobs that appeared in the original Final Fantasy. Used for all four job slots.",
+        "jobs": [
+            "knight",
+            "monk",
+            "thief",
+            "white mage",
+            "black mage",
+            "red mage"
+        ]
+    },
+    {
+    "name": "onion_wind",
+    "description": "Onion run, job slot 1: jobs that originally appeared in Final Fantasy 3.",
+    "jobs": [
+      "black mage",
+      "knight",
+      "thief"
+    ]
+  },
+  {
+    "name": "onion_water",
+    "description": "Onion run, job slot 2: jobs that originally appeared in Final Fantasy 3.",
+    "jobs": [
+      "monk",
+      "red mage",
+      "white mage"
+    ]
+  },
+  {
+    "name": "onion_fire",
+    "description": "Onion run, job slot 3: jobs that originally appeared in Final Fantasy 3.",
+    "jobs": [
+      "bard",
+      "geomancer",
+      "summoner"
+    ]
+  },
+  {
+    "name": "onion_earth",
+    "description": "Onion run, job slot 4: jobs that originally appeared in Final Fantasy 3.",
+    "jobs": [
+      "dragoon",
+      "ninja",
+      "ranger"
+    ]
+  }
+]
