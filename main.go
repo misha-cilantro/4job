@@ -1,6 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+
+	tea "charm.land/bubbletea/v2"
+)
 
 /*
  * Steps:
@@ -11,19 +16,22 @@ import "fmt"
  */
 
 type run struct {
-	step            int
-	runType         string
-	jobSetLocked    bool
-	jobSet          string
-	excludes        []string
-	allowDuplicates bool
+	step             int
+	cursor           int // current highlighted item within the active step
+	runType          string
+	jobSetLocked     bool
+	jobSet           string
+	excludes         []string
+	allowDuplicates  bool
+	duplicatesLocked bool // true once a run type or job set forces Allow Duplicates on
+	allowSpecial     bool
+	specialLocked    bool // true once the run type forces Allow Special Jobs on
 }
 
 func main() {
-	fmt.Printf("Loaded %d job pools, %d run types, %d job sets\n",
-		len(JobPools), len(RunTypes), len(JobSets))
-
-	for _, rt := range RunTypes {
-		fmt.Printf("  - %s: %d job slots\n", rt.Name, len(rt.Pools))
+	p := tea.NewProgram(newRun())
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		os.Exit(1)
 	}
 }

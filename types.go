@@ -5,6 +5,13 @@ import (
 	"fmt"
 )
 
+// Job describes a single Final Fantasy 5 job and the descriptive tags used
+// to group it (e.g. "physical", "magic", "rod_breaker").
+type Job struct {
+	Name string   `json:"name"`
+	Tags []string `json:"tags"`
+}
+
 // JobPool is a named, reusable list of jobs. Everything that needs to
 // restrict job selection (run types, job sets) references pools by name
 // instead of inlining job lists directly.

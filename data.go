@@ -4,15 +4,21 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 )
 
 // dataFS embeds the game data JSON files directly into the binary, so the
 // app doesn't depend on being run from any particular working directory.
 //
-//go:embed data/jobPools.json data/runTypes.json data/jobSets.json
+//go:embed data/jobPools.json data/runTypes.json data/jobSets.json data/jobs.json
 var dataFS embed.FS
 
 var (
+	// Jobs holds every job in the game; JobsByName is the same data keyed
+	// by name for fast lookups.
+	Jobs       []Job
+	JobsByName map[string]Job
+
 	// JobPools holds every named job pool, keyed by position; JobPoolsByName
 	// is the same data keyed by name for fast lookups.
 	JobPools       []JobPool
@@ -34,6 +40,9 @@ func init() {
 // loadData reads and parses the embedded JSON files into the package-level
 // variables above, and builds the JobPoolsByName lookup index.
 func loadData() error {
+	if err := loadJSON("data/jobs.json", &Jobs); err != nil {
+		return err
+	}
 	if err := loadJSON("data/jobPools.json", &JobPools); err != nil {
 		return err
 	}
@@ -42,6 +51,11 @@ func loadData() error {
 	}
 	if err := loadJSON("data/jobSets.json", &JobSets); err != nil {
 		return err
+	}
+
+	JobsByName = make(map[string]Job, len(Jobs))
+	for _, job := range Jobs {
+		JobsByName[job.Name] = job
 	}
 
 	JobPoolsByName = make(map[string]JobPool, len(JobPools))
@@ -54,6 +68,18 @@ func loadData() error {
 	}
 
 	return nil
+}
+
+// AllJobNames returns every job name in the game, sorted alphabetically.
+// It's used by steps (like picking excluded jobs) that need the full
+// roster rather than a specific pool.
+func AllJobNames() []string {
+	names := make([]string, 0, len(Jobs))
+	for _, job := range Jobs {
+		names = append(names, job.Name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // loadJSON reads name from the embedded filesystem and unmarshals it into out.
