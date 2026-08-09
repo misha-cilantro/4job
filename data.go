@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 )
 
@@ -28,8 +29,10 @@ var (
 	RunTypes       []RunType
 	RunTypesByName map[string]RunType
 
-	// JobSets holds every available job set modifier (Team 750, ...).
-	JobSets []JobSet
+	// JobSets holds every available job set modifier (Team 750, ...);
+	// JobSetsByName is the same data keyed by name for fast lookups.
+	JobSets       []JobSet
+	JobSetsByName map[string]JobSet
 )
 
 func init() {
@@ -69,6 +72,11 @@ func loadData() error {
 		JobPoolsByName[pool.Name] = pool
 	}
 
+	JobSetsByName = make(map[string]JobSet, len(JobSets))
+	for _, js := range JobSets {
+		JobSetsByName[js.Name] = js
+	}
+
 	if err := validateData(); err != nil {
 		return err
 	}
@@ -100,9 +108,17 @@ func loadJSON(name string, out interface{}) error {
 	return nil
 }
 
-// validateData sanity-checks that every pool name referenced by run types
-// and job sets actually exists in jobPools.json. This catches typos in the
-// data files at startup instead of failing silently at random selection time.
+// IsSpecialJob reports whether a job is one of the nonstandard picks
+// (Freelancer, Mime) that only some run types allow.
+func IsSpecialJob(name string) bool {
+	return slices.Contains(JobsByName[name].Tags, tagSpecial)
+}
+
+// validateData sanity-checks the data files against each other at startup,
+// so typos fail loudly here instead of silently narrowing a pool - or
+// crashing - at random selection time. It checks that every pool name
+// referenced by a run type or job set exists, that every job named inside a
+// pool exists, and that each run type defines exactly crystalCount slots.
 func validateData() error {
 	checkPool := func(context, name string) error {
 		if _, ok := JobPoolsByName[name]; !ok {
@@ -111,7 +127,18 @@ func validateData() error {
 		return nil
 	}
 
+	for _, pool := range JobPools {
+		for _, job := range pool.Jobs {
+			if _, ok := JobsByName[job]; !ok {
+				return fmt.Errorf("pool %q references unknown job %q", pool.Name, job)
+			}
+		}
+	}
+
 	for _, rt := range RunTypes {
+		if len(rt.Pools) != crystalCount {
+			return fmt.Errorf("run type %q defines %d job slots, expected %d", rt.Name, len(rt.Pools), crystalCount)
+		}
 		for slot, ref := range rt.Pools {
 			for _, name := range ref {
 				if err := checkPool(fmt.Sprintf("run type %q, slot %d", rt.Name, slot+1), name); err != nil {
@@ -129,5 +156,28 @@ func validateData() error {
 		}
 	}
 
+	return validateCombinations()
+}
+
+// validateCombinations rejects any run type / job set pairing the wizard can
+// offer where some slot has no legal job at all - Onion's earth slot holds
+// dragoon, ninja and ranger, none of which are Team 750 jobs. Such a pairing
+// still produces a run, because the picker relaxes its way out, but it
+// produces one that quietly violates the job set the player chose. Better to
+// fail at startup than to ship a data file that can't mean what it says.
+//
+// Run types that skip job set selection are exempt: the wizard never offers
+// them a job set, so an empty intersection there is unreachable.
+func validateCombinations() error {
+	for _, rt := range RunTypes {
+		if rt.NoJobSetSelect {
+			continue
+		}
+		for _, js := range JobSets {
+			if err := combinationFeasible(rt, js); err != nil {
+				return fmt.Errorf("run type %q cannot be combined with job set %q: %w", rt.Name, js.Name, err)
+			}
+		}
+	}
 	return nil
 }

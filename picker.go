@@ -1,44 +1,302 @@
 package main
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strings"
 )
 
-func pickJobs(m run) []string {
-	var jobs []string
-	var rt RunType = RunTypesByName[m.runType]
-
-	for _, pools := range rt.Pools {
-		job := pickJobFromPools(m, pools, jobs, m.allowDuplicates)
-		jobs = append(jobs, job)
-	}
-
-	return jobs
+// pickResult is the outcome of rolling a run: one job per crystal slot, plus
+// any notes about constraints that had to be relaxed to fill a slot.
+type pickResult struct {
+	Jobs  []string
+	Notes []string
 }
 
-func pickJobFromPools(m run, pools PoolRef, pickedJobs []string, allowDupes bool) string {
-	var possibleJobs []string
+// pickJobs rolls one job for each of the run type's slots, honouring the
+// selected job set, the excluded jobs, and the duplicate/special options.
+func pickJobs(m run) (pickResult, error) {
+	rt, ok := RunTypesByName[m.runType]
+	if !ok {
+		return pickResult{}, fmt.Errorf("unknown run type %q", m.runType)
+	}
 
-	for _, poolName := range pools {
-		poolJobs := JobPoolsByName[poolName].Jobs
-		for _, job := range poolJobs {
-			if slices.Contains(m.excludes, job) {
-				continue
+	restrictions, err := jobSetRestrictions(m, rt)
+	if err != nil {
+		return pickResult{}, err
+	}
+
+	var res pickResult
+	for slot, pools := range rt.Pools {
+		job, note, err := pickJobForSlot(m, slot, pools, restrictions[slot], res.Jobs)
+		if err != nil {
+			return pickResult{}, err
+		}
+		if note != "" {
+			res.Notes = append(res.Notes, note)
+		}
+		res.Jobs = append(res.Jobs, job)
+	}
+
+	return res, nil
+}
+
+// jobSetRestrictions maps each of the run's slots to the list of jobs the
+// selected job set permits there. A nil entry means "no restriction", which
+// is what every slot gets when no job set is selected.
+func jobSetRestrictions(m run, rt RunType) ([][]string, error) {
+	out := make([][]string, len(rt.Pools))
+	if m.jobSet == "" {
+		return out, nil
+	}
+
+	js, ok := JobSetsByName[m.jobSet]
+	if !ok {
+		return nil, fmt.Errorf("unknown job set %q", m.jobSet)
+	}
+
+	if jobSetCounted(js) == 0 {
+		union := jobSetUnion(js)
+		for i := range out {
+			out[i] = union
+		}
+		return out, nil
+	}
+
+	if err := checkCountedSlots(rt, js); err != nil {
+		return nil, err
+	}
+
+	return assignCountedPools(rt, js, m.specialAllowed()), nil
+}
+
+// jobSetCounted is the total number of slots a job set pins to a specific
+// pool. Zero means the job set applies to every slot equally.
+func jobSetCounted(js JobSet) int {
+	total := 0
+	for _, ref := range js.Pools {
+		total += ref.Count
+	}
+	return total
+}
+
+// jobSetUnion is every job any of the job set's pools allows.
+func jobSetUnion(js JobSet) []string {
+	var union []string
+	for _, ref := range js.Pools {
+		for _, job := range JobPoolsByName[ref.Pool].Jobs {
+			if !slices.Contains(union, job) {
+				union = append(union, job)
 			}
+		}
+	}
+	return union
+}
 
-			if slices.Contains(pickedJobs, job) && !allowDupes {
-				continue
-			}
+// checkCountedSlots verifies a counted job set pins exactly as many slots as
+// the run type has. Anything else is a data error, not something to roll with.
+func checkCountedSlots(rt RunType, js JobSet) error {
+	if counted := jobSetCounted(js); counted != len(rt.Pools) {
+		return fmt.Errorf("job set %q fixes %d job slots but run type %q has %d",
+			js.Name, counted, rt.Name, len(rt.Pools))
+	}
+	return nil
+}
 
-			possibleJobs = append(possibleJobs, job)
+// assignCountedPools distributes a counted job set's pools across the run's
+// slots - Team 375's two 750 slots and two non-750 slots - and returns the
+// per-slot job lists.
+//
+// The order is random, but chosen only from assignments that leave every slot
+// at least one job. A blind shuffle would sometimes pin a pool to a slot that
+// can't satisfy it, forcing the ladder to abandon the job set even though a
+// workable split existed. If no split works at all, an arbitrary one is
+// returned and the ladder relaxes from there; validateCombinations rejects
+// that case at startup for any pairing the wizard can actually offer.
+func assignCountedPools(rt RunType, js JobSet, allowSpecial bool) [][]string {
+	var names []string
+	for _, ref := range js.Pools {
+		for range ref.Count {
+			names = append(names, ref.Pool)
 		}
 	}
 
-	if len(possibleJobs) == 0 {
-		return pickJobFromPools(m, pools, pickedJobs, true)
+	chosen := names
+	if workable := feasibleAssignments(rt, js, allowSpecial); len(workable) > 0 {
+		chosen = workable[rand.IntN(len(workable))]
 	}
 
-	randomIndex := rand.IntN(len(possibleJobs))
-	return possibleJobs[randomIndex]
+	out := make([][]string, len(chosen))
+	for i, name := range chosen {
+		out[i] = JobPoolsByName[name].Jobs
+	}
+	return out
+}
+
+// feasibleAssignments returns every distinct way to hand a counted job set's
+// pools to rt's slots such that no slot ends up with an empty candidate list.
+func feasibleAssignments(rt RunType, js JobSet, allowSpecial bool) [][]string {
+	var names []string
+	for _, ref := range js.Pools {
+		for range ref.Count {
+			names = append(names, ref.Pool)
+		}
+	}
+	if len(names) != len(rt.Pools) {
+		return nil
+	}
+
+	var out [][]string
+	seen := map[string]bool{}
+
+	permutations(names, func(order []string) {
+		key := strings.Join(order, "|")
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+
+		for slot, name := range order {
+			if len(poolIntersection(rt.Pools[slot], JobPoolsByName[name].Jobs, allowSpecial)) == 0 {
+				return
+			}
+		}
+		out = append(out, slices.Clone(order))
+	})
+
+	return out
+}
+
+// permutations calls fn with every ordering of items. Orderings repeat when
+// items contains duplicate entries, so callers dedupe.
+func permutations(items []string, fn func([]string)) {
+	var walk func(prefix, rest []string)
+	walk = func(prefix, rest []string) {
+		if len(rest) == 0 {
+			fn(prefix)
+			return
+		}
+		for i := range rest {
+			remaining := append(slices.Clone(rest[:i]), rest[i+1:]...)
+			walk(append(slices.Clone(prefix), rest[i]), remaining)
+		}
+	}
+	walk(nil, items)
+}
+
+// combinationFeasible reports whether every slot of rt can be filled under
+// js without abandoning the job set. It assumes the strictest special-job
+// setting the pairing can have, since allowing special jobs only ever adds
+// candidates.
+//
+// For counted job sets it asks whether *any* assignment of the counts to
+// slots works, because assignCountedPools is free to choose one.
+func combinationFeasible(rt RunType, js JobSet) error {
+	if jobSetCounted(js) > 0 {
+		if err := checkCountedSlots(rt, js); err != nil {
+			return err
+		}
+		if len(feasibleAssignments(rt, js, rt.AllowSpecial)) == 0 {
+			return fmt.Errorf("no way to distribute its pools across the run's %d job slots leaves every slot a legal job",
+				len(rt.Pools))
+		}
+		return nil
+	}
+
+	union := jobSetUnion(js)
+	for slot, pools := range rt.Pools {
+		if len(poolIntersection(pools, union, rt.AllowSpecial)) == 0 {
+			return fmt.Errorf("slot %d (%s) has no job in common with it",
+				slot+1, strings.Join(pools, "/"))
+		}
+	}
+	return nil
+}
+
+// relaxation is one rung of the fallback ladder used when a slot has no
+// legal job left. Rungs are tried in order, loosest last, so a run stays as
+// close to the player's chosen constraints as it can.
+type relaxation struct {
+	allowDuplicates bool
+	ignoreExcludes  bool
+	ignoreJobSet    bool
+	note            string
+}
+
+// pickJobForSlot rolls a single slot. It walks the relaxation ladder and
+// returns the first rung that yields any candidate, along with a note when
+// that rung had to loosen something. Special jobs are never relaxed: if the
+// run doesn't allow them, they stay out.
+func pickJobForSlot(m run, slot int, pools PoolRef, jobSetJobs, picked []string) (job, note string, err error) {
+	ladder := []relaxation{
+		{allowDuplicates: m.duplicatesAllowed()},
+		{allowDuplicates: true, note: "allowed a duplicate job"},
+		{allowDuplicates: true, ignoreExcludes: true, note: "ignored the excluded jobs"},
+		{allowDuplicates: true, ignoreExcludes: true, ignoreJobSet: true, note: "ignored the job set"},
+	}
+
+	for _, r := range ladder {
+		candidates := slotCandidates(m, pools, jobSetJobs, picked, r)
+		if len(candidates) == 0 {
+			continue
+		}
+		if r.note != "" {
+			note = fmt.Sprintf("slot %d (%s): %s, because nothing else was available",
+				slot+1, strings.Join(pools, "/"), r.note)
+		}
+		return candidates[rand.IntN(len(candidates))], note, nil
+	}
+
+	return "", "", fmt.Errorf("no job available for slot %d (%s): every job in those pools is filtered out",
+		slot+1, strings.Join(pools, "/"))
+}
+
+// poolIntersection returns the jobs a slot may draw considering only the
+// constraints that no amount of rerolling can work around: the run type's
+// pools, the job set restriction, and the special-job rule. A nil restriction
+// means the job set doesn't limit this slot.
+//
+// Pools that overlap contribute each job once, so a job appearing in two of
+// the slot's pools isn't twice as likely to be picked.
+func poolIntersection(pools PoolRef, restriction []string, allowSpecial bool) []string {
+	var out []string
+
+	for _, poolName := range pools {
+		for _, job := range JobPoolsByName[poolName].Jobs {
+			if slices.Contains(out, job) {
+				continue
+			}
+			if !allowSpecial && IsSpecialJob(job) {
+				continue
+			}
+			if restriction != nil && !slices.Contains(restriction, job) {
+				continue
+			}
+			out = append(out, job)
+		}
+	}
+
+	return out
+}
+
+// slotCandidates returns every job the slot may legally roll under r, layering
+// the per-roll constraints (excludes, duplicates) on top of poolIntersection.
+func slotCandidates(m run, pools PoolRef, jobSetJobs, picked []string, r relaxation) []string {
+	if r.ignoreJobSet {
+		jobSetJobs = nil
+	}
+
+	var out []string
+	for _, job := range poolIntersection(pools, jobSetJobs, m.specialAllowed()) {
+		if !r.ignoreExcludes && slices.Contains(m.excludes, job) {
+			continue
+		}
+		if !r.allowDuplicates && slices.Contains(picked, job) {
+			continue
+		}
+		out = append(out, job)
+	}
+
+	return out
 }

@@ -16,35 +16,65 @@ import (
  * 5. Confirm run; optionally name folder for run, otherwise named after the run type + date
  */
 
+// run is the whole wizard state. Whether a modifier is locked is derived
+// from the chosen run type and job set rather than stored, so backing up and
+// choosing again can't leave a stale lock behind - see duplicatesLocked and
+// friends in model.go.
 type run struct {
-	step             int
-	cursor           int // current highlighted item within the active step
-	runType          string
-	jobSetLocked     bool
-	jobSet           string
-	excludes         []string
-	allowDuplicates  bool
-	duplicatesLocked bool // true once a run type or job set forces Allow Duplicates on
-	allowSpecial     bool
-	specialLocked    bool // true once the run type forces Allow Special Jobs on
-	name             string
+	step            int
+	cursor          int // current highlighted item within the active step
+	runType         string
+	jobSet          string
+	excludes        []string
+	allowDuplicates bool // the user's choice; a run type or job set may force it on
+	allowSpecial    bool // the user's choice; a run type may force it on
+	name            string
+
+	// confirmed is set only when the user accepts the summary. Quitting at
+	// any point leaves it false and writes nothing.
+	confirmed bool
 }
 
 func main() {
 	p := tea.NewProgram(newRun())
 	finalModel, err := p.Run()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		os.Exit(1)
+		fail(err)
 	}
 
-	if m, ok := finalModel.(run); ok {
-		fmt.Printf("Picking jobs...\n\n")
-		jobs := pickJobs(m)
-
-		fmt.Printf("Writing run folder...\n\n")
-		writeFolder(m, jobs)
-
-		fmt.Printf("Done! Your run is in ./%s", m.name)
+	m, ok := finalModel.(run)
+	if !ok || !m.confirmed {
+		fmt.Println("Cancelled - no run folder written.")
+		return
 	}
+
+	fmt.Printf("Picking jobs...\n\n")
+	res, err := pickJobs(m)
+	if err != nil {
+		fail(err)
+	}
+
+	for i, job := range res.Jobs {
+		fmt.Printf("  %d. %s\n", i+1, job)
+	}
+	fmt.Println()
+
+	for _, note := range res.Notes {
+		fmt.Printf("Note: %s\n", note)
+	}
+	if len(res.Notes) > 0 {
+		fmt.Println()
+	}
+
+	fmt.Printf("Writing run folder...\n\n")
+	if err := writeFolder(m, res.Jobs); err != nil {
+		fail(err)
+	}
+
+	fmt.Printf("Done! Your run is in ./%s\n", m.name)
+}
+
+func fail(err error) {
+	fmt.Fprintln(os.Stderr, "Error:", err)
+	os.Exit(1)
 }

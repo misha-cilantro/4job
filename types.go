@@ -5,6 +5,15 @@ import (
 	"fmt"
 )
 
+// crystalCount is the number of job slots in a run - one per crystal.
+// Every run type must define exactly this many pool slots, and the run
+// folder gets one file per slot.
+const crystalCount = 4
+
+// tagSpecial marks the nonstandard jobs (Freelancer, Mime) that only some
+// run types allow to be rolled.
+const tagSpecial = "special"
+
 // Job describes a single Final Fantasy 5 job and the descriptive tags used
 // to group it (e.g. "physical", "magic", "rod_breaker").
 type Job struct {
