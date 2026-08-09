@@ -25,11 +25,25 @@ var fileOrder = []string{
 	earth,
 }
 
+// checkFolderName verifies the run folder name is usable. generateName
+// sanitizes it already, but the folder is created relative to the working
+// directory, so this confirms it really is a single path element before
+// anything touches the disk.
+func checkFolderName(name string) error {
+	if name == "" {
+		return errors.New("run has no folder name")
+	}
+	if name != filepath.Base(name) || name == "." || name == ".." {
+		return fmt.Errorf("run folder name %q is not a plain folder name", name)
+	}
+	return nil
+}
+
 // writeFolder creates the run folder and writes one file per crystal,
 // containing that crystal's job.
 func writeFolder(m run, jobs []string) error {
-	if m.name == "" {
-		return errors.New("run has no folder name")
+	if err := checkFolderName(m.name); err != nil {
+		return err
 	}
 	if len(jobs) != len(fileOrder) {
 		return fmt.Errorf("expected %d jobs to write, got %d", len(fileOrder), len(jobs))

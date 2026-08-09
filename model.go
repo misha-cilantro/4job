@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -88,11 +87,17 @@ func (m run) Init() tea.Cmd {
 }
 
 func (m run) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyPressMsg)
-	if !ok {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
 		return m, nil
+	case tea.KeyPressMsg:
+		return m.handleKey(msg)
 	}
+	return m, nil
+}
 
+func (m run) handleKey(keyMsg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch keyMsg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -186,12 +191,22 @@ func (m run) updateRunType(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m run) viewRunType() string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("%s: Pick a run type\n\n", m.stepLabel(stepRunType)))
-	for i, rt := range RunTypes {
-		b.WriteString(fmt.Sprintf("%s %s\n", cursorFor(i, m.cursor), rt.Name))
+
+	start, end := visibleRange(len(RunTypes), m.cursor, m.listRows(runTypeChrome))
+
+	if start > 0 {
+		b.WriteString(fmt.Sprintf("  ... %d more above\n", start))
+	}
+	for i := start; i < end; i++ {
+		b.WriteString(fmt.Sprintf("%s %s\n", cursorFor(i, m.cursor), RunTypes[i].Name))
 		if i == m.cursor {
-			b.WriteString(fmt.Sprintf("    %s\n", rt.Description))
+			b.WriteString(fmt.Sprintf("    %s\n", RunTypes[i].Description))
 		}
 	}
+	if end < len(RunTypes) {
+		b.WriteString(fmt.Sprintf("  ... %d more below\n", len(RunTypes)-end))
+	}
+
 	b.WriteString("\n(up/down to move, enter to select, q to quit)")
 	return b.String()
 }
@@ -267,14 +282,28 @@ func (m run) updateExcludes(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m run) viewExcludes() string {
 	names := AllJobNames()
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%s: Exclude any jobs? (e.g. to avoid recent repeats)\n\n", m.stepLabel(stepExcludes)))
-	for i, name := range names {
+
+	b.WriteString(fmt.Sprintf("%s: Exclude any jobs? (e.g. to avoid recent repeats) [%d excluded]\n\n",
+		m.stepLabel(stepExcludes), len(m.excludes)))
+
+	// The full roster is 20-odd rows, which overflows a short terminal, so
+	// only a window around the cursor is drawn.
+	start, end := visibleRange(len(names), m.cursor, m.listRows(excludesChrome))
+
+	if start > 0 {
+		b.WriteString(fmt.Sprintf("     ... %d more above\n", start))
+	}
+	for i := start; i < end; i++ {
 		mark := " "
-		if containsString(m.excludes, name) {
+		if containsString(m.excludes, names[i]) {
 			mark = "x"
 		}
-		b.WriteString(fmt.Sprintf("%s [%s] %s\n", cursorFor(i, m.cursor), mark, name))
+		b.WriteString(fmt.Sprintf("%s [%s] %s\n", cursorFor(i, m.cursor), mark, names[i]))
 	}
+	if end < len(names) {
+		b.WriteString(fmt.Sprintf("     ... %d more below\n", len(names)-end))
+	}
+
 	b.WriteString("\n(up/down to move, space to toggle, enter to continue, esc to go back, q to quit)")
 	return b.String()
 }
@@ -368,6 +397,51 @@ func (m run) viewSummary() string {
 	return b.String()
 }
 
+// --- list scrolling ---
+
+// Rows each step spends on things other than list items, counting the header,
+// the blank line under it, both scroll hints, and the blank line plus footer
+// at the bottom.
+const (
+	excludesChrome = 6
+
+	// The run type list spends one more row on the highlighted item's
+	// description.
+	runTypeChrome = 7
+
+	// defaultListRows is used until the first tea.WindowSizeMsg arrives, and
+	// minListRows keeps the list usable in a very short terminal. Below
+	// chrome+minListRows rows the view does overflow, on the grounds that a
+	// one-item list is worse than a little scrollback.
+	defaultListRows = 18
+	minListRows     = 3
+)
+
+// listRows is how many list items fit in the terminal, given that chrome rows
+// are spent on everything around the list.
+func (m run) listRows(chrome int) int {
+	if m.height <= 0 {
+		return defaultListRows
+	}
+	return max(m.height-chrome, minListRows)
+}
+
+// visibleRange returns the [start, end) bounds of a scrolling window of rows
+// items over a list of total items. The window keeps cursor centred where it
+// can, and stops sliding once it reaches either end so the last page stays
+// full instead of trailing off.
+func visibleRange(total, cursor, rows int) (start, end int) {
+	if rows >= total {
+		return 0, total
+	}
+
+	start = cursor - rows/2
+	start = min(start, total-rows)
+	start = max(start, 0)
+
+	return start, start + rows
+}
+
 // --- shared helpers ---
 
 func cursorFor(i, cursor int) string {
@@ -405,38 +479,4 @@ func removeString(list []string, target string) []string {
 		}
 	}
 	return out
-}
-
-func generateName(m run) string {
-	var b strings.Builder
-	b.WriteString(m.runType)
-
-	if m.jobSet != "" && m.jobSet != none {
-		b.WriteString("-")
-		b.WriteString(m.jobSet)
-	}
-
-	if len(m.excludes) == 0 {
-		b.WriteString("-all")
-	} else {
-		b.WriteString(fmt.Sprintf("-excl-%d", len(m.excludes)))
-	}
-
-	b.WriteString("-opt")
-	if !m.duplicatesAllowed() && !m.specialAllowed() {
-		b.WriteString("X")
-	}
-
-	if m.duplicatesAllowed() {
-		b.WriteString("D")
-	}
-
-	if m.specialAllowed() {
-		b.WriteString("S")
-	}
-
-	t := time.Now()
-	b.WriteString(fmt.Sprintf("-%s", t.Format("20060102150405")))
-
-	return b.String()
 }

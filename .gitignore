@@ -1,0 +1,6 @@
+# Compiled binary
+4job
+4job.exe
+
+# Run folders written by the app, e.g. Normal-all-optX-20260809143000/
+[0-9][0-9]_*.txt

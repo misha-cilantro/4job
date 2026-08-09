@@ -30,6 +30,11 @@ type run struct {
 	allowSpecial    bool // the user's choice; a run type may force it on
 	name            string
 
+	// Terminal size, from the last tea.WindowSizeMsg. Zero until the first
+	// one arrives; the list views fall back to a default height.
+	width  int
+	height int
+
 	// confirmed is set only when the user accepts the summary. Quitting at
 	// any point leaves it false and writes nothing.
 	confirmed bool
