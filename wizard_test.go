@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -117,19 +118,20 @@ func TestWizardFullFlowWritesARun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pickJobs: %v", err)
 	}
-	if err := writeFolder(m, res.Jobs); err != nil {
+	if err := writeFolder(m, res.Slots); err != nil {
 		t.Fatalf("writeFolder: %v", err)
 	}
 
 	allowed := JobPoolsByName["750"].Jobs
-	for i, filename := range fileOrder {
+	for i, s := range res.Slots {
+		filename := slotFilename(s, i)
 		got, err := os.ReadFile(filepath.Join(dir, m.name, filename+".txt"))
 		if err != nil {
 			t.Fatalf("reading %s: %v", filename, err)
 		}
 		job := string(got)
-		if job != res.Jobs[i] {
-			t.Errorf("%s holds %q, want %q", filename, job, res.Jobs[i])
+		if job != s.Job {
+			t.Errorf("%s holds %q, want %q", filename, job, s.Job)
 		}
 		if !slices.Contains(allowed, job) {
 			t.Errorf("%s holds %q, which is not a Team 750 job", filename, job)
@@ -233,10 +235,147 @@ func TestWizardCannotToggleSpecialJobs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pickJobs: %v", err)
 	}
-	for _, job := range res.Jobs {
+	for _, job := range res.Jobs() {
 		if IsSpecialJob(job) {
 			t.Errorf("rolled special job %q on a Normal run", job)
 		}
+	}
+}
+
+// atOptions walks the wizard to the options step with the given run type.
+func atOptions(t *testing.T, runType string) run {
+	t.Helper()
+
+	m := newRun()
+	m, _ = press(t, m, tea.WindowSizeMsg{Width: 80, Height: 40})
+	m, _ = press(t, m, downTo(indexOfRunType(t, runType))...)
+	m, _ = press(t, m, special(tea.KeyEnter))
+	if !m.jobSetLocked() {
+		m, _ = press(t, m, special(tea.KeyEnter)) // job set: (none)
+	}
+	m, _ = press(t, m, special(tea.KeyEnter)) // excludes: none
+
+	if m.step != stepOptions {
+		t.Fatalf("step is %d, want stepOptions", m.step)
+	}
+	return m
+}
+
+func TestWizardCyclesJobRestrictions(t *testing.T) {
+	m := atOptions(t, "Normal")
+	m, _ = press(t, m, downTo(optRestriction)...)
+
+	if m.restriction != restrictNone {
+		t.Fatalf("restriction starts at %d, want restrictNone", m.restriction)
+	}
+
+	// Space cycles forward through every mode and wraps back to the start.
+	for i := 1; i <= restrictCount; i++ {
+		m, _ = press(t, m, special(tea.KeySpace))
+		want := i % restrictCount
+		if m.restriction != want {
+			t.Fatalf("after %d presses restriction is %d, want %d", i, m.restriction, want)
+		}
+		if restrictionName(m.restriction) == "" {
+			t.Errorf("mode %d has no label", m.restriction)
+		}
+	}
+}
+
+func TestWizardTogglesExtraJobSlots(t *testing.T) {
+	m := atOptions(t, "Normal")
+
+	for _, tc := range []struct {
+		row  int
+		get  func(run) bool
+		name string
+	}{
+		{optFifthJob, func(m run) bool { return m.fifthJob }, "Fifth Job"},
+		{optExtraJobs, func(m run) bool { return m.extraJobs }, "Extra Jobs"},
+		{optForbidden, func(m run) bool { return m.forbidden }, "Forbidden"},
+	} {
+		at := atOptions(t, "Normal")
+		at, _ = press(t, at, downTo(tc.row)...)
+
+		if tc.get(at) {
+			t.Errorf("%s should start off", tc.name)
+		}
+		at, _ = press(t, at, special(tea.KeySpace))
+		if !tc.get(at) {
+			t.Errorf("%s did not turn on", tc.name)
+		}
+		at, _ = press(t, at, special(tea.KeySpace))
+		if tc.get(at) {
+			t.Errorf("%s did not turn back off", tc.name)
+		}
+	}
+
+	// Turning both extra-job options on should add two slots to the roll.
+	m, _ = press(t, m, downTo(optFifthJob)...)
+	m, _ = press(t, m, special(tea.KeySpace), special(tea.KeyDown), special(tea.KeySpace))
+	if !m.fifthJob || !m.extraJobs {
+		t.Fatalf("expected both extra job options on, got fifth=%t extra=%t", m.fifthJob, m.extraJobs)
+	}
+
+	res, err := pickJobs(m)
+	if err != nil {
+		t.Fatalf("pickJobs: %v", err)
+	}
+	if len(res.Slots) != crystalCount+2 {
+		t.Errorf("got %d slots, want %d", len(res.Slots), crystalCount+2)
+	}
+}
+
+// TestWizardAdvancedOptionsReachTheWrittenRun is the end-to-end check: options
+// chosen in the wizard have to survive into the files on disk.
+func TestWizardAdvancedOptionsReachTheWrittenRun(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	m := atOptions(t, "Normal")
+	m, _ = press(t, m, downTo(optRestriction)...)
+	m, _ = press(t, m, special(tea.KeySpace)) // no restrictions -> natural
+	m, _ = press(t, m, special(tea.KeyDown), special(tea.KeySpace))
+	m, _ = press(t, m, special(tea.KeyDown), special(tea.KeySpace))
+	m, _ = press(t, m, special(tea.KeyDown), special(tea.KeySpace))
+
+	if m.restriction != restrictNatural || !m.fifthJob || !m.extraJobs || !m.forbidden {
+		t.Fatalf("options did not take: %+v", m)
+	}
+
+	m, _ = press(t, m, special(tea.KeyEnter)) // to summary
+	m, quit := press(t, m, special(tea.KeyEnter))
+	if !quit || !m.confirmed {
+		t.Fatal("summary should confirm and quit")
+	}
+
+	res, err := pickJobs(m)
+	if err != nil {
+		t.Fatalf("pickJobs: %v", err)
+	}
+	if err := writeFolder(m, res.Slots); err != nil {
+		t.Fatalf("writeFolder: %v", err)
+	}
+
+	files := readRun(t, dir, m.name)
+	for _, want := range []string{
+		rulesFile + ".txt", "01_wind.txt", "02_water.txt", "03_fire.txt",
+		"04_earth.txt", "05_krile.txt", "06_advance.txt",
+	} {
+		if _, ok := files[want]; !ok {
+			t.Errorf("missing %s; got %v", want, fileNames(files))
+		}
+	}
+	if !strings.Contains(files["01_wind.txt"], "Bartz must always be") {
+		t.Errorf("natural rule missing from 01_wind.txt:\n%s", files["01_wind.txt"])
+	}
+	if !strings.Contains(files[rulesFile+".txt"], "Forbidden:") {
+		t.Errorf("Forbidden rule missing from the rules file:\n%s", files[rulesFile+".txt"])
+	}
+
+	// The folder name should record the options too.
+	if !strings.Contains(m.name, "N5AF") {
+		t.Errorf("folder name %q should carry the option letters N5AF", m.name)
 	}
 }
 

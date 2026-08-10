@@ -28,17 +28,41 @@ func generateName(m run) string {
 		fmt.Fprintf(&b, "-excl-%d", len(m.excludes))
 	}
 
-	b.WriteString("-opt")
-	if !m.duplicatesAllowed() && !m.specialAllowed() {
-		b.WriteString("X")
-	}
-
+	// One letter per active option, or X for a run with none of them.
+	var opts strings.Builder
 	if m.duplicatesAllowed() {
-		b.WriteString("D")
+		opts.WriteString("D")
+	}
+	if m.specialAllowed() {
+		opts.WriteString("S")
+	}
+	switch m.restriction {
+	case restrictNatural:
+		opts.WriteString("N")
+	case restrictUpgrade:
+		opts.WriteString("U")
+	}
+	if m.fifthJob {
+		opts.WriteString("5")
+	}
+	if m.extraJobs {
+		opts.WriteString("A")
+	}
+	// FR for a forbidden job rolled up front, F for one the player picks later.
+	// Distinguished by letters rather than case, since Windows folder names are
+	// case-insensitive.
+	switch m.forbidden {
+	case forbiddenRolled:
+		opts.WriteString("FR")
+	case forbiddenPlayer:
+		opts.WriteString("F")
 	}
 
-	if m.specialAllowed() {
-		b.WriteString("S")
+	b.WriteString("-opt")
+	if opts.Len() == 0 {
+		b.WriteString("X")
+	} else {
+		b.WriteString(opts.String())
 	}
 
 	fmt.Fprintf(&b, "-%s", time.Now().Format("20060102150405"))

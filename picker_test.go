@@ -17,8 +17,10 @@ func mustPick(t *testing.T, m run) pickResult {
 	if err != nil {
 		t.Fatalf("pickJobs(%+v): %v", m, err)
 	}
-	if len(res.Jobs) != crystalCount {
-		t.Fatalf("got %d jobs, want %d: %v", len(res.Jobs), crystalCount, res.Jobs)
+	// Four crystal slots, plus one per advanced option that adds a job.
+	want := crystalCount + len(m.extraSlotNames())
+	if len(res.Slots) != want {
+		t.Fatalf("got %d jobs, want %d: %v", len(res.Slots), want, res.Jobs())
 	}
 	return res
 }
@@ -26,7 +28,7 @@ func mustPick(t *testing.T, m run) pickResult {
 func TestSpecialJobsExcludedUnlessAllowed(t *testing.T) {
 	m := run{runType: "Normal"}
 	for range iterations {
-		for _, job := range mustPick(t, m).Jobs {
+		for _, job := range mustPick(t, m).Jobs() {
 			if IsSpecialJob(job) {
 				t.Fatalf("rolled special job %q with allowSpecial off", job)
 			}
@@ -41,7 +43,7 @@ func TestSpecialJobsRollableWhenRunTypeAllowsThem(t *testing.T) {
 	}
 
 	for range iterations {
-		for _, job := range mustPick(t, m).Jobs {
+		for _, job := range mustPick(t, m).Jobs() {
 			if IsSpecialJob(job) {
 				return
 			}
@@ -91,7 +93,7 @@ func TestOnlyDeclaredRunTypesRollSpecials(t *testing.T) {
 		}
 
 		for range iterations {
-			for _, job := range mustPick(t, m).Jobs {
+			for _, job := range mustPick(t, m).Jobs() {
 				if IsSpecialJob(job) {
 					t.Fatalf("%s rolled special job %q but doesn't declare allowSpecial", rt.Name, job)
 				}
@@ -135,7 +137,7 @@ func TestSpecialJobsIgnoreJobSets(t *testing.T) {
 	}
 
 	for range iterations * 4 {
-		for _, job := range mustPick(t, m).Jobs {
+		for _, job := range mustPick(t, m).Jobs() {
 			if IsSpecialJob(job) {
 				return
 			}
@@ -151,11 +153,120 @@ func TestSpecialJobsCanStillBeExcluded(t *testing.T) {
 		if len(res.Notes) != 0 {
 			t.Fatalf("unexpected relaxation: %v", res.Notes)
 		}
-		for _, job := range res.Jobs {
+		for _, job := range res.Jobs() {
 			if IsSpecialJob(job) {
 				t.Fatalf("rolled excluded special job %q", job)
 			}
 		}
+	}
+}
+
+func TestFifthJobAddsASlotFromTheRunTypesReach(t *testing.T) {
+	m := run{runType: "Normal", fifthJob: true}
+
+	// A Normal run reaches every crystal across its four slots, so the fifth
+	// job should eventually land on a job from each of them.
+	seen := map[string]bool{}
+	for range iterations * 2 {
+		res := mustPick(t, m)
+
+		last := res.Slots[len(res.Slots)-1]
+		if last.Kind != slotFifth {
+			t.Fatalf("last slot is kind %d, want slotFifth", last.Kind)
+		}
+		for _, crystal := range []string{"wind", "water", "fire", "earth"} {
+			if slices.Contains(JobPoolsByName[crystal].Jobs, last.Job) {
+				seen[crystal] = true
+			}
+		}
+	}
+
+	for _, crystal := range []string{"wind", "water", "fire", "earth"} {
+		if !seen[crystal] {
+			t.Errorf("the fifth job never came from the %s crystal", crystal)
+		}
+	}
+}
+
+func TestFifthJobRespectsExcludesAndJobSet(t *testing.T) {
+	m := run{runType: "Normal", jobSet: "Team 750", fifthJob: true, excludes: []string{"bard"}}
+	allowed := JobPoolsByName["750"].Jobs
+
+	for range iterations {
+		res := mustPick(t, m)
+		if len(res.Notes) != 0 {
+			t.Fatalf("unexpected relaxation: %v", res.Notes)
+		}
+
+		fifth := res.Slots[len(res.Slots)-1].Job
+		if !slices.Contains(allowed, fifth) {
+			t.Errorf("fifth job %q is not a Team 750 job", fifth)
+		}
+		if fifth == "bard" {
+			t.Error("fifth job rolled an excluded job")
+		}
+	}
+}
+
+func TestExtraJobsRollsOnlyAdvanceJobs(t *testing.T) {
+	advance := JobPoolsByName[advancePoolName].Jobs
+
+	// Team 750 covers none of the Advance jobs, so a job set must not restrict
+	// this slot or it would be unfillable.
+	for _, jobSet := range []string{"", "Team 750", "Team No 750"} {
+		m := run{runType: "Normal", jobSet: jobSet, extraJobs: true}
+
+		seen := map[string]bool{}
+		for range iterations {
+			res := mustPick(t, m)
+			if len(res.Notes) != 0 {
+				t.Fatalf("job set %q: unexpected relaxation: %v", jobSet, res.Notes)
+			}
+
+			last := res.Slots[len(res.Slots)-1]
+			if last.Kind != slotAdvance {
+				t.Fatalf("last slot is kind %d, want slotAdvance", last.Kind)
+			}
+			if !slices.Contains(advance, last.Job) {
+				t.Fatalf("job set %q: Advance slot rolled %q, which is not an Advance job", jobSet, last.Job)
+			}
+			seen[last.Job] = true
+		}
+
+		if len(seen) != len(advance) {
+			t.Errorf("job set %q: only rolled %d of %d Advance jobs", jobSet, len(seen), len(advance))
+		}
+	}
+}
+
+func TestAdvanceJobsNeverFillCrystalSlots(t *testing.T) {
+	advance := JobPoolsByName[advancePoolName].Jobs
+
+	for _, rt := range RunTypes {
+		m := run{runType: rt.Name, extraJobs: true}
+		for range 50 {
+			res := mustPick(t, m)
+			for i, s := range res.Slots {
+				if s.Kind == slotCrystal && slices.Contains(advance, s.Job) {
+					t.Fatalf("%s: Advance job %q filled crystal slot %d", rt.Name, s.Job, i+1)
+				}
+			}
+		}
+	}
+}
+
+func TestBothExtraSlotsTogether(t *testing.T) {
+	m := run{runType: "Normal", fifthJob: true, extraJobs: true}
+	res := mustPick(t, m)
+
+	if len(res.Slots) != crystalCount+2 {
+		t.Fatalf("got %d slots, want %d", len(res.Slots), crystalCount+2)
+	}
+	if got := res.Slots[crystalCount].Kind; got != slotFifth {
+		t.Errorf("slot %d is kind %d, want slotFifth", crystalCount+1, got)
+	}
+	if got := res.Slots[crystalCount+1].Kind; got != slotAdvance {
+		t.Errorf("slot %d is kind %d, want slotAdvance", crystalCount+2, got)
 	}
 }
 
@@ -172,9 +283,9 @@ func TestJobSetRestrictsEveryJob(t *testing.T) {
 				if len(res.Notes) != 0 {
 					t.Fatalf("unexpected relaxation: %v", res.Notes)
 				}
-				for _, job := range res.Jobs {
+				for _, job := range res.Jobs() {
 					if !slices.Contains(allowed, job) {
-						t.Fatalf("job %q is not in pool %q (run %v)", job, tc.pool, res.Jobs)
+						t.Fatalf("job %q is not in pool %q (run %v)", job, tc.pool, res.Jobs())
 					}
 				}
 			}
@@ -196,7 +307,7 @@ func TestTeam375SplitsTwoAndTwo(t *testing.T) {
 		}
 
 		count750 := 0
-		for i, job := range res.Jobs {
+		for i, job := range res.Jobs() {
 			in750 := slices.Contains(JobPoolsByName["750"].Jobs, job)
 			inNo750 := slices.Contains(JobPoolsByName["no750"].Jobs, job)
 			if in750 == inNo750 {
@@ -208,7 +319,7 @@ func TestTeam375SplitsTwoAndTwo(t *testing.T) {
 			}
 		}
 		if count750 != 2 {
-			t.Fatalf("got %d jobs from the 750 pool, want 2: %v", count750, res.Jobs)
+			t.Fatalf("got %d jobs from the 750 pool, want 2: %v", count750, res.Jobs())
 		}
 	}
 
@@ -226,7 +337,7 @@ func TestExcludedJobsAreAvoidedWhenPossible(t *testing.T) {
 		if len(res.Notes) != 0 {
 			t.Fatalf("unexpected relaxation: %v", res.Notes)
 		}
-		for _, job := range res.Jobs {
+		for _, job := range res.Jobs() {
 			if slices.Contains(excludes, job) {
 				t.Fatalf("rolled excluded job %q", job)
 			}
@@ -243,9 +354,9 @@ func TestNoDuplicatesWhenNotAllowed(t *testing.T) {
 		if len(res.Notes) != 0 {
 			continue // a relaxation note means a duplicate was unavoidable
 		}
-		for i, job := range res.Jobs {
-			if slices.Contains(res.Jobs[:i], job) {
-				t.Fatalf("duplicate job %q without a relaxation note: %v", job, res.Jobs)
+		for i, job := range res.Jobs() {
+			if slices.Contains(res.Jobs()[:i], job) {
+				t.Fatalf("duplicate job %q without a relaxation note: %v", job, res.Jobs())
 			}
 		}
 	}
@@ -261,8 +372,8 @@ func TestFullyExcludedPoolTerminates(t *testing.T) {
 	if len(res.Notes) == 0 {
 		t.Fatal("expected a note explaining that excludes were ignored")
 	}
-	if !slices.Contains(JobPoolsByName["earth"].Jobs, res.Jobs[3]) {
-		t.Errorf("earth slot should still hold an earth job, got %q", res.Jobs[3])
+	if !slices.Contains(JobPoolsByName["earth"].Jobs, res.Jobs()[3]) {
+		t.Errorf("earth slot should still hold an earth job, got %q", res.Jobs()[3])
 	}
 }
 
@@ -349,8 +460,8 @@ func TestImpossibleJobSetCombinationTerminates(t *testing.T) {
 	if len(res.Notes) == 0 {
 		t.Fatal("expected a note explaining that the job set was ignored")
 	}
-	if !slices.Contains(JobPoolsByName["onion_earth"].Jobs, res.Jobs[3]) {
-		t.Errorf("slot 4 should fall back to its crystal pool, got %q", res.Jobs[3])
+	if !slices.Contains(JobPoolsByName["onion_earth"].Jobs, res.Jobs()[3]) {
+		t.Errorf("slot 4 should fall back to its crystal pool, got %q", res.Jobs()[3])
 	}
 }
 

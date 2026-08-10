@@ -64,6 +64,19 @@ func (m run) specialAllowed() bool {
 	return m.runTypeDef().AllowSpecial
 }
 
+// extraSlotNames labels the job slots the advanced options add beyond the four
+// crystals, for the summary.
+func (m run) extraSlotNames() []string {
+	var out []string
+	if m.fifthJob {
+		out = append(out, "Fifth Job")
+	}
+	if m.extraJobs {
+		out = append(out, "Advance job")
+	}
+	return out
+}
+
 // stepLabel renders a "Step 2/4" header for step. Run types that skip the
 // job set step have one fewer step, so the numbering is computed from the
 // steps this particular run will actually visit.
@@ -312,10 +325,14 @@ func (m run) viewExcludes() string {
 
 // --- Step 4: options ---
 
-// Allow Duplicates is the only option the player sets. Special jobs used to be
-// a toggle here too, but they're fixed by the run type.
+// Rows on the options step. Special jobs used to be a toggle here too, but
+// they're fixed by the run type and now show as information only.
 const (
 	optDuplicates = iota
+	optRestriction
+	optFifthJob
+	optExtraJobs
+	optForbidden
 	optCount
 )
 
@@ -330,8 +347,21 @@ func (m run) updateOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case " ", "space":
-		if m.cursor == optDuplicates && !m.duplicatesLocked() {
-			m.allowDuplicates = !m.allowDuplicates
+		switch m.cursor {
+		case optDuplicates:
+			if !m.duplicatesLocked() {
+				m.allowDuplicates = !m.allowDuplicates
+			}
+		case optRestriction:
+			// Cycles rather than toggles: the three modes are exclusive.
+			m.restriction = (m.restriction + 1) % restrictCount
+		case optFifthJob:
+			m.fifthJob = !m.fifthJob
+		case optExtraJobs:
+			m.extraJobs = !m.extraJobs
+		case optForbidden:
+			// Cycles: off, rolled now, left to the player.
+			m.forbidden = (m.forbidden + 1) % forbiddenCount
 		}
 	case "enter":
 		m.name = generateName(m)
@@ -343,13 +373,24 @@ func (m run) updateOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m run) viewOptions() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s: Options\n\n", m.stepLabel(stepOptions))
+
 	fmt.Fprintf(&b, "%s Allow Duplicates: %s\n",
 		cursorFor(optDuplicates, m.cursor), toggleLabel(m.duplicatesAllowed(), m.duplicatesLocked()))
+	fmt.Fprintf(&b, "%s Job restrictions: %s\n",
+		cursorFor(optRestriction, m.cursor), restrictionName(m.restriction))
+	fmt.Fprintf(&b, "%s Fifth Job (Krile): %s\n",
+		cursorFor(optFifthJob, m.cursor), yesNo(m.fifthJob))
+	fmt.Fprintf(&b, "%s Extra Jobs (one Advance job): %s\n",
+		cursorFor(optExtraJobs, m.cursor), yesNo(m.extraJobs))
+	fmt.Fprintf(&b, "%s Forbidden (a job is crossed out in the Void): %s\n",
+		cursorFor(optForbidden, m.cursor), forbiddenName(m.forbidden))
+
+	fmt.Fprintf(&b, "\n  %s\n", restrictionRules[m.restriction])
 
 	// Shown for information only - the run type decides it, so it gets no
 	// cursor row.
-	fmt.Fprintf(&b, "\n  Special jobs (Freelancer/Mime): %s\n", yesNo(m.specialAllowed()))
-	fmt.Fprintf(&b, "  Fixed by the %s run type; only some run types make them available.\n", m.runType)
+	fmt.Fprintf(&b, "  Special jobs (Freelancer/Mime): %s, fixed by the %s run type.\n",
+		yesNo(m.specialAllowed()), m.runType)
 
 	b.WriteString("\n(up/down to move, space to toggle, enter to finish, esc to go back, q to quit)")
 	return b.String()
@@ -380,9 +421,17 @@ func (m run) viewSummary() string {
 		jobSet = none
 	}
 
-	fmt.Fprintf(&b, "Job set:         %s\n", jobSet)
+	fmt.Fprintf(&b, "Job set:          %s\n", jobSet)
+	fmt.Fprintf(&b, "Job restrictions: %s\n", restrictionName(m.restriction))
 	fmt.Fprintf(&b, "Allow Duplicates: %t\n", m.duplicatesAllowed())
 	fmt.Fprintf(&b, "Allow Special:    %t\n", m.specialAllowed())
+
+	if extras := m.extraSlotNames(); len(extras) > 0 {
+		fmt.Fprintf(&b, "Extra jobs:       %s\n", strings.Join(extras, ", "))
+	}
+	if m.forbidden != forbiddenOff {
+		fmt.Fprintf(&b, "Forbidden:        %s\n", forbiddenName(m.forbidden))
+	}
 
 	if len(m.excludes) == 0 {
 		b.WriteString("Excluded jobs:    (none)\n")

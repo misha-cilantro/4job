@@ -212,18 +212,33 @@ bespoke runs, so mirroring the form isn't the goal.
 4. **Excluded jobs** have no upstream equivalent at all. They're the point of
    the tool — avoiding recent repeats.
 
-### Not modelled
+### Modifiers
 
-Split by whether they'd actually change what the picker writes:
+Implemented:
 
-- **Play-time rules only** — Natural / No Restrictions / Upgrade Jobs, and
-  Forbidden. These govern which character may use an assigned job and when, not
-  which jobs get rolled. The four files the app writes are unaffected.
-- **Would change the roll** — Fifth Job assigns a fifth job, Extra Jobs assigns
-  one of the Advance jobs (Gladiator, Oracle, Cannoneer), and Berserker Risk
-  weights the roll toward Berserker. All three are genuine picker features, not
-  play-time flavour. Fifth Job and Extra Jobs would also need the writer to stop
-  assuming exactly four slots, and the Advance jobs aren't in `jobs.json` at all.
+- **Job restrictions** — No Restrictions, Natural Jobs and Upgrade Jobs, as a
+  three-way choice on the options step. The rule is written into each job file:
+  Natural names the character who owns that job, Upgrade explains the unlock.
+- **Fifth Job** — adds a fifth slot, written to `05_krile.txt` with its
+  retire-a-job rules underneath. Under Natural it gives Krile a job of her own
+  instead of Galuf's, and the Earth file stops claiming her.
+- **Extra Jobs** — adds an Advance job (Gladiator, Oracle or Cannoneer) from a
+  new `advance` pool. No crystal and no job set covers these, so nothing but the
+  excluded jobs restricts that slot.
+- **Forbidden** — rule only, no extra roll. The job it crosses out is decided
+  in-game on entering the Void rather than at assignment time, so the app just
+  records the rule in the rules file.
+
+Not implemented:
+
+- **Berserker Risk** — weights the roll toward Berserker, "rising with the
+  event's donation total". There's no local equivalent of a donation total, so
+  there's no faithful version of it. Could be added as a plain weight.
+
+An assumption worth flagging: the rules don't say which crystal a **fifth job**
+comes from. It draws from everything the run type can reach across all four of
+its slots, and from either side of a counted job set like Team 375, whose four
+counted slots are already spent by then.
 
 ### Closed: the "Pure Chaos" loose end
 

@@ -167,5 +167,29 @@
       "magic",
       "special"
     ]
+  },
+  {
+    "name": "gladiator",
+    "tags": [
+      "combat",
+      "physical",
+      "advance"
+    ]
+  },
+  {
+    "name": "oracle",
+    "tags": [
+      "support",
+      "magic",
+      "advance"
+    ]
+  },
+  {
+    "name": "cannoneer",
+    "tags": [
+      "combat",
+      "physical",
+      "advance"
+    ]
   }
 ]

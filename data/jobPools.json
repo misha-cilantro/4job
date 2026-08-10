@@ -52,6 +52,15 @@
         ]
     },
     {
+        "name": "advance",
+        "description": "The GBA-only Advance jobs, assigned by the Extra Jobs option. They belong to no crystal and no job set.",
+        "jobs": [
+            "gladiator",
+            "oracle",
+            "cannoneer"
+        ]
+    },
+    {
         "name": "750",
         "description": "Jobs that can break elemental rods or share that caster play style (rods cost 750 gil).",
         "jobs": [

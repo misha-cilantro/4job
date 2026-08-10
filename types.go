@@ -10,13 +10,33 @@ import (
 // folder gets one file per slot.
 const crystalCount = 4
 
-// tagSpecial marks the nonstandard jobs (Freelancer, Mime) that only some
-// run types allow to be rolled, and specialPoolName is the pool holding them.
-// validateData keeps the two in agreement.
+// Tags and pools for the jobs that sit outside the four crystals: the
+// nonstandard jobs (Freelancer, Mime) that only some run types roll, and the
+// GBA Advance jobs the Extra Jobs option assigns. validateData keeps each tag
+// and its pool in agreement.
 const (
 	tagSpecial      = "special"
 	specialPoolName = "special"
+
+	tagAdvance      = "advance"
+	advancePoolName = "advance"
 )
+
+// slotKind distinguishes the four crystal slots from the extra jobs the
+// advanced options add.
+type slotKind int
+
+const (
+	slotCrystal slotKind = iota
+	slotFifth            // the Fifth Job, unlocked when Krile joins
+	slotAdvance          // an Advance job, from the Extra Jobs option
+)
+
+// assignedSlot is one rolled job together with the kind of slot it fills.
+type assignedSlot struct {
+	Kind slotKind
+	Job  string
+}
 
 // Job describes a single Final Fantasy 5 job and the descriptive tags used
 // to group it (e.g. "physical", "magic", "rod_breaker").

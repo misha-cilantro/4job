@@ -7,15 +7,29 @@ import (
 	"strings"
 )
 
-// pickResult is the outcome of rolling a run: one job per crystal slot, plus
-// any notes about constraints that had to be relaxed to fill a slot.
+// pickResult is the outcome of rolling a run: one job per slot, plus any notes
+// about constraints that had to be relaxed to fill a slot.
 type pickResult struct {
-	Jobs  []string
+	Slots []assignedSlot
 	Notes []string
+
+	// Forbidden is the job the Void crosses out, when the Forbidden option is
+	// set to roll it now. Empty when the option is off or left to the player.
+	Forbidden string
 }
 
-// pickJobs rolls one job for each of the run type's slots, honouring the
-// selected job set, the excluded jobs, and the duplicate/special options.
+// Jobs is the rolled job names in slot order.
+func (r pickResult) Jobs() []string {
+	out := make([]string, 0, len(r.Slots))
+	for _, s := range r.Slots {
+		out = append(out, s.Job)
+	}
+	return out
+}
+
+// pickJobs rolls one job for each of the run's slots - the four the run type
+// defines, plus a fifth job and an Advance job when those options are on -
+// honouring the selected job set, the excluded jobs and the duplicate rule.
 func pickJobs(m run) (pickResult, error) {
 	rt, ok := RunTypesByName[m.runType]
 	if !ok {
@@ -28,18 +42,87 @@ func pickJobs(m run) (pickResult, error) {
 	}
 
 	var res pickResult
-	for slot, pools := range rt.Pools {
-		job, note, err := pickJobForSlot(m, slot, pools, restrictions[slot], res.Jobs)
+	roll := func(kind slotKind, pools PoolRef, restriction []string) error {
+		position := len(res.Slots)
+		job, note, err := pickJobForSlot(m, position, pools, restriction, res.Jobs())
 		if err != nil {
-			return pickResult{}, err
+			return err
 		}
 		if note != "" {
 			res.Notes = append(res.Notes, note)
 		}
-		res.Jobs = append(res.Jobs, job)
+		res.Slots = append(res.Slots, assignedSlot{Kind: kind, Job: job})
+		return nil
+	}
+
+	for slot, pools := range rt.Pools {
+		if err := roll(slotCrystal, pools, restrictions[slot]); err != nil {
+			return pickResult{}, err
+		}
+	}
+
+	if m.fifthJob {
+		// The rules don't say which crystal a fifth job comes from, so it draws
+		// from everything the run type can reach. A counted job set has already
+		// spent its slots, so the fifth job may come from either side of it.
+		if err := roll(slotFifth, runTypeReach(rt), jobSetReach(m.jobSet)); err != nil {
+			return pickResult{}, err
+		}
+	}
+
+	if m.extraJobs {
+		// Advance jobs are in no crystal and no job set, so nothing restricts
+		// this slot but the excluded jobs.
+		if err := roll(slotAdvance, PoolRef{advancePoolName}, nil); err != nil {
+			return pickResult{}, err
+		}
+	}
+
+	if m.forbidden == forbiddenRolled {
+		res.Forbidden = rollForbidden(res.Slots)
 	}
 
 	return res, nil
+}
+
+// rollForbidden picks which of the run's own jobs the Void crosses out. It
+// chooses among the distinct job names rather than the slots, so a duplicated
+// job isn't twice as likely to be the one lost - though when it is lost, every
+// slot holding it goes with it.
+func rollForbidden(slots []assignedSlot) string {
+	var distinct []string
+	for _, s := range slots {
+		if !slices.Contains(distinct, s.Job) {
+			distinct = append(distinct, s.Job)
+		}
+	}
+	if len(distinct) == 0 {
+		return ""
+	}
+	return distinct[rand.IntN(len(distinct))]
+}
+
+// runTypeReach is every pool the run type can draw from across all its slots.
+func runTypeReach(rt RunType) PoolRef {
+	var out PoolRef
+	for _, ref := range rt.Pools {
+		for _, name := range ref {
+			if !slices.Contains(out, name) {
+				out = append(out, name)
+			}
+		}
+	}
+	return out
+}
+
+// jobSetReach is every job the named job set permits anywhere, used for slots
+// the set doesn't explicitly count. Nil when no job set is selected.
+func jobSetReach(name string) []string {
+	js, ok := JobSetsByName[name]
+	if !ok {
+		return nil
+	}
+	return jobSetUnion(js)
 }
 
 // jobSetRestrictions maps each of the run's slots to the list of jobs the

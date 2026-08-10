@@ -23,9 +23,17 @@ The wizard walks four steps, then a summary:
 2. **Job set** — Team 750, Team No 750, Team 375, or none. Skipped for run types
    that set their own job pools (Onion, Classic).
 3. **Excluded jobs** — anything you'd rather not roll again.
-4. **Options** — Allow Duplicates. Forced on by Classic and Team 375. Whether
-   Freelancer and Mime can be rolled is fixed by the run type, so it's shown
-   here but not adjustable.
+4. **Options**
+   - **Allow Duplicates** — forced on by Classic and Team 375.
+   - **Job restrictions** — No Restrictions, Natural Jobs or Upgrade Jobs.
+     Cycles with `space`, since the three are mutually exclusive.
+   - **Fifth Job** — a fifth job when Krile joins.
+   - **Extra Jobs** — one of the GBA Advance jobs.
+   - **Forbidden** — a job is crossed out on entering the Void. Adds the rule
+     only; the job is chosen in-game, not at assignment time.
+
+   Whether Freelancer and Mime can be rolled is fixed by the run type, so it's
+   shown here but not adjustable.
 
 Nothing is written to disk until you confirm at the summary. Quitting at any
 point writes nothing.
@@ -37,18 +45,30 @@ continue, `esc` or `backspace` to go back, `r` to start over from the summary,
 ## Output
 
 A folder in the working directory, named from the run's settings plus a
-timestamp:
+timestamp. Each job goes in its own file, with the job name on the first line so
+a one-line stream source still reads correctly:
 
 ```
-Normal-Team 750-excl-3-optX-20260809143000/
-  01_wind.txt     white mage
-  02_water.txt    red mage
-  03_fire.txt     bard
-  04_earth.txt    chemist
+Normal-Team 750-excl-1-optN5AF-20260809143000/
+  00_rules.txt      the run's settings and its whole-run rules
+  01_wind.txt       blue mage
+                    Bartz must always be a blue mage.
+  02_water.txt      summoner
+                    Lenna must always be a summoner.
+  03_fire.txt       geomancer
+  04_earth.txt      chemist
+  05_krile.txt      red mage           (Fifth Job)
+  06_advance.txt    gladiator          (Extra Jobs)
 ```
 
-The `-opt` suffix records the modifiers: `D` for duplicates, `S` for special
-jobs, `X` for neither.
+Rules are written under a job only when one actually applies to it, so a plain
+run with no advanced options writes just the job name, exactly as before.
+Numbering is sequential over the slots rolled, so an Advance job is `05_advance`
+on its own and `06_advance` alongside a fifth job.
+
+The `-opt` suffix records the modifiers: `D` duplicates, `S` special jobs,
+`N` natural, `U` upgrade, `5` fifth job, `A` Advance job, `F` forbidden, or `X`
+for a run with none of them.
 
 If your constraints can't all be met — say you excluded every Earth job on a
 Normal run — the picker relaxes them one at a time, loosest last, and prints a
@@ -62,7 +82,7 @@ The rules live in `data/*.json`, embedded into the binary at build time:
 | --- | --- |
 | `runTypes.json` | Run types and the crystal pools each job slot draws from |
 | `jobSets.json` | Team 750 / No 750 / 375 |
-| `jobPools.json` | Named job pools: the four crystals, the 750 split, Classic, Onion, and the special jobs |
+| `jobPools.json` | Named job pools: the four crystals, the 750 split, Classic, Onion, the special jobs and the Advance jobs |
 | `jobs.json` | Every job and its descriptive tags |
 
 Editing them is the intended way to add or adjust a run type. Startup
@@ -82,7 +102,8 @@ changing the data — and prefer it to re-reading the wiki.
 | `main.go` | The `run` model and the top-level flow |
 | `model.go` | Bubble Tea wizard: steps, keys, views, list scrolling |
 | `picker.go` | Rolling jobs, job set restrictions, the relaxation ladder |
-| `writer.go` | Creating the run folder |
+| `rules.go` | Job restriction modes and the rule text written into the files |
+| `writer.go` | Creating the run folder and its files |
 | `name.go` | Building and sanitising the folder name |
 | `data.go` | Loading and validating the embedded JSON |
 | `types.go` | Data types and custom JSON unmarshalling |

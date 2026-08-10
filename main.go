@@ -31,6 +31,16 @@ type run struct {
 	allowDuplicates bool // the user's choice; a run type or job set may force it on
 	name            string
 
+	// Advanced options. restriction is one of restrictNone/Natural/Upgrade and
+	// decides which character may use each job. fifthJob and extraJobs each add
+	// a job slot. forbidden is one of forbiddenOff/Rolled/Player: it adds no
+	// job, only takes one away, either decided at roll time or left to the
+	// player to pick on entering the Void.
+	restriction int
+	fifthJob    bool
+	extraJobs   bool
+	forbidden   int
+
 	// Terminal height, from the last tea.WindowSizeMsg. Zero until the first
 	// one arrives; the list views fall back to a default. Width isn't tracked
 	// because nothing wraps to it yet.
@@ -60,8 +70,8 @@ func main() {
 		fail(err)
 	}
 
-	for i, job := range res.Jobs {
-		fmt.Printf("  %d. %s\n", i+1, job)
+	for i, s := range res.Slots {
+		fmt.Printf("  %-14s %s\n", slotFilename(s, i)+".txt", s.Job)
 	}
 	fmt.Println()
 
@@ -72,8 +82,12 @@ func main() {
 		fmt.Println()
 	}
 
+	if res.Forbidden != "" {
+		fmt.Printf("  forbidden:     %s\n\n", res.Forbidden)
+	}
+
 	fmt.Printf("Writing run folder...\n\n")
-	if err := writeFolder(m, res.Jobs); err != nil {
+	if err := writeFolder(m, res); err != nil {
 		fail(err)
 	}
 

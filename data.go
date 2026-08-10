@@ -142,19 +142,24 @@ func validateData() error {
 		}
 	}
 
-	if _, ok := JobPoolsByName[specialPoolName]; !ok {
-		return fmt.Errorf("jobPools.json is missing the %q pool", specialPoolName)
-	}
-
-	// The special tag and the special pool must agree. The pool decides which
-	// jobs the picker treats as nonstandard, so a job tagged special but left
-	// out of it would be rolled as an ordinary crystal job.
-	for _, job := range Jobs {
-		tagged := slices.Contains(job.Tags, tagSpecial)
-		pooled := slices.Contains(SpecialJobs(), job.Name)
-		if tagged != pooled {
-			return fmt.Errorf("job %q has %s tag = %t but membership of the %q pool = %t; the two must agree",
-				job.Name, tagSpecial, tagged, specialPoolName, pooled)
+	// Each out-of-crystal group needs its pool, and the pool must agree with the
+	// matching tag. The pool is what the code reads, so a job carrying the tag
+	// but missing from the pool would be rolled as an ordinary crystal job.
+	for _, group := range []struct{ pool, tag string }{
+		{specialPoolName, tagSpecial},
+		{advancePoolName, tagAdvance},
+	} {
+		pool, ok := JobPoolsByName[group.pool]
+		if !ok {
+			return fmt.Errorf("jobPools.json is missing the %q pool", group.pool)
+		}
+		for _, job := range Jobs {
+			tagged := slices.Contains(job.Tags, group.tag)
+			pooled := slices.Contains(pool.Jobs, job.Name)
+			if tagged != pooled {
+				return fmt.Errorf("job %q has %s tag = %t but membership of the %q pool = %t; the two must agree",
+					job.Name, group.tag, tagged, group.pool, pooled)
+			}
 		}
 	}
 
