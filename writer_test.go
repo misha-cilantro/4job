@@ -159,7 +159,7 @@ func TestInstructionsListEveryFileInOrder(t *testing.T) {
 	}
 
 	for _, want := range []string{"Wind Shrine", "Walse Tower", "Karnak", "Ronka",
-		"Krile joins", "Advance jobs", "the Void"} {
+		"Krile joins", "legendary weapons", "the Void"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("instructions do not say when to open the %q file:\n%s", want, body)
 		}

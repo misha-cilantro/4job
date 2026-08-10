@@ -132,7 +132,7 @@ func slotNotes(m run, res pickResult, position int) []string {
 			"You may not swap between all five Jobs. Only use four.")
 	case slotAdvance:
 		notes = append(notes,
-			"An Advance job, GBA and later only.",
+			"An Advance job (GBA and later), added once you have all twelve legendary weapons.",
 			"You must choose one of your previous Jobs to no longer use. This includes that Job's Abilities.")
 	}
 
@@ -160,7 +160,7 @@ func slotTrigger(s assignedSlot, position int) string {
 	case slotFifth:
 		return "When Krile joins the party."
 	case slotAdvance:
-		return "Once the Advance jobs are available in your version of the game."
+		return "Once you have all twelve legendary weapons."
 	}
 	if position < len(crystalTriggers) {
 		return crystalTriggers[position]

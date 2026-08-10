@@ -224,7 +224,9 @@ Implemented:
   instead of Galuf's, and the Earth file stops claiming her.
 - **Extra Jobs** — adds an Advance job (Gladiator, Oracle or Cannoneer) from a
   new `advance` pool. No crystal and no job set covers these, so nothing but the
-  excluded jobs restricts that slot.
+  excluded jobs restricts that slot. They unlock **once you have all twelve
+  legendary weapons** — that timing came from the project owner, not from any
+  page above, which is why it isn't in the quoted sections.
 - **Forbidden** — off, rolled now, or left to the player. The rules don't say
   who decides which job is crossed out, so both readings are offered. Rolled
   mode picks one of the run's own assigned jobs and names it in a `_forbidden`
