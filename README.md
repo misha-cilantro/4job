@@ -104,19 +104,32 @@ The rules live in `data/*.json`, embedded into the binary at build time:
 | File | Contents |
 | --- | --- |
 | `runTypes.json` | Run types and the crystal pools each job slot draws from |
-| `jobSets.json` | Team 750 / No 750 / 375 |
+| `jobSets.json` | Team 750 / No 750 / 375 / Vibe Coded |
 | `jobPools.json` | Named job pools: the four crystals, the 750 split, Classic, Onion, the special jobs and the Advance jobs |
 | `jobs.json` | Every job and its descriptive tags |
 
-Editing them is the intended way to add or adjust a run type. Startup
+A pool per tag (`tag:physical`, `tag:magic`, …) is derived from `jobs.json` at
+load rather than written by hand, so the tags can't drift from the pools built on
+them. That's what Team Vibe Coded draws on.
+
+Editing these files is the intended way to add or adjust a run type. Startup
 validation rejects data that can't work: unknown pool or job names, a run type
 without exactly four slots, a job set that pins the wrong number of slots, a
 run type / job set pairing where some slot has no legal job, and disagreement
-between the `special` tag and the special pool.
+between the `special`/`advance` tags and their pools.
 
-`from-wiki.md` is a local copy of the official rules with a section comparing
-them to these files, including which deviations are deliberate. Check it before
-changing the data — and prefer it to re-reading the wiki.
+## Docs
+
+Two files under `docs/`, split by where the information came from. The split is
+worth preserving: it's what makes the first file usable as an authority.
+
+| File | Contents |
+| --- | --- |
+| [`docs/from-wiki.md`](docs/from-wiki.md) | The official rules, copied locally with sources and fetch date. Nothing invented here. Ends with the gaps the sources don't settle. |
+| [`docs/customizations.md`](docs/customizations.md) | Everything this project adds or changes: house rules, deliberate departures, decisions made where the rules are silent, and the text written into the generated files. |
+
+Check both before changing `data/`, and prefer them to re-reading the wiki. If you
+add something the rules don't specify, record it in `customizations.md`.
 
 ## Layout
 
@@ -139,6 +152,7 @@ go test ./...
 ```
 
 `data_test.go` pins the data files against the rules transcribed in
-`from-wiki.md`, so a data edit that drifts from the published tables fails.
-`wizard_test.go` drives the Bubble Tea model by feeding it messages directly,
-since the TUI needs a real terminal and can't be scripted through stdin.
+[`docs/from-wiki.md`](docs/from-wiki.md), so a data edit that drifts from the
+published tables fails. `wizard_test.go` drives the Bubble Tea model by feeding it
+messages directly, since the TUI needs a real terminal and can't be scripted
+through stdin.

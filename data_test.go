@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// wikiPools is the published run type table, transcribed from from-wiki.md.
+// wikiPools is the published run type table, transcribed from docs/from-wiki.md.
 // It's the authority for what the data files should say, so a data edit that
 // drifts from the rules fails here.
 var wikiPools = map[string][][]string{
