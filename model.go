@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -86,7 +87,7 @@ func (m run) Init() tea.Cmd {
 func (m run) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
+		m.height = msg.Height
 		return m, nil
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
@@ -187,21 +188,21 @@ func (m run) updateRunType(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m run) viewRunType() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%s: Pick a run type\n\n", m.stepLabel(stepRunType)))
+	fmt.Fprintf(&b, "%s: Pick a run type\n\n", m.stepLabel(stepRunType))
 
 	start, end := visibleRange(len(RunTypes), m.cursor, m.listRows(runTypeChrome))
 
 	if start > 0 {
-		b.WriteString(fmt.Sprintf("  ... %d more above\n", start))
+		fmt.Fprintf(&b, "  ... %d more above\n", start)
 	}
 	for i := start; i < end; i++ {
-		b.WriteString(fmt.Sprintf("%s %s\n", cursorFor(i, m.cursor), RunTypes[i].Name))
+		fmt.Fprintf(&b, "%s %s\n", cursorFor(i, m.cursor), RunTypes[i].Name)
 		if i == m.cursor {
-			b.WriteString(fmt.Sprintf("    %s\n", RunTypes[i].Description))
+			fmt.Fprintf(&b, "    %s\n", RunTypes[i].Description)
 		}
 	}
 	if end < len(RunTypes) {
-		b.WriteString(fmt.Sprintf("  ... %d more below\n", len(RunTypes)-end))
+		fmt.Fprintf(&b, "  ... %d more below\n", len(RunTypes)-end)
 	}
 
 	b.WriteString("\n(up/down to move, enter to select, q to quit)")
@@ -236,13 +237,13 @@ func (m run) updateJobSet(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m run) viewJobSet() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%s: Pick a job set (optional)\n\n", m.stepLabel(stepJobSet)))
-	b.WriteString(fmt.Sprintf("%s (none - no job set restriction)\n", cursorFor(0, m.cursor)))
+	fmt.Fprintf(&b, "%s: Pick a job set (optional)\n\n", m.stepLabel(stepJobSet))
+	fmt.Fprintf(&b, "%s (none - no job set restriction)\n", cursorFor(0, m.cursor))
 	for i, js := range JobSets {
 		idx := i + 1
-		b.WriteString(fmt.Sprintf("%s %s\n", cursorFor(idx, m.cursor), js.Name))
+		fmt.Fprintf(&b, "%s %s\n", cursorFor(idx, m.cursor), js.Name)
 		if idx == m.cursor {
-			b.WriteString(fmt.Sprintf("    %s\n", js.Description))
+			fmt.Fprintf(&b, "    %s\n", js.Description)
 		}
 	}
 	b.WriteString("\n(up/down to move, enter to select, esc to go back, q to quit)")
@@ -263,11 +264,15 @@ func (m run) updateExcludes(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case " ", "space":
+		// Cloned rather than mutated in place: run is passed by value, so the
+		// previous model must keep its own excludes intact.
 		name := names[m.cursor]
-		if containsString(m.excludes, name) {
-			m.excludes = removeString(m.excludes, name)
+		if slices.Contains(m.excludes, name) {
+			m.excludes = slices.DeleteFunc(slices.Clone(m.excludes), func(s string) bool {
+				return s == name
+			})
 		} else {
-			m.excludes = append(append([]string{}, m.excludes...), name)
+			m.excludes = append(slices.Clone(m.excludes), name)
 		}
 	case "enter":
 		m.cursor = 0
@@ -280,25 +285,25 @@ func (m run) viewExcludes() string {
 	names := AllJobNames()
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("%s: Exclude any jobs? (e.g. to avoid recent repeats) [%d excluded]\n\n",
-		m.stepLabel(stepExcludes), len(m.excludes)))
+	fmt.Fprintf(&b, "%s: Exclude any jobs? (e.g. to avoid recent repeats) [%d excluded]\n\n",
+		m.stepLabel(stepExcludes), len(m.excludes))
 
 	// The full roster is 20-odd rows, which overflows a short terminal, so
 	// only a window around the cursor is drawn.
 	start, end := visibleRange(len(names), m.cursor, m.listRows(excludesChrome))
 
 	if start > 0 {
-		b.WriteString(fmt.Sprintf("     ... %d more above\n", start))
+		fmt.Fprintf(&b, "     ... %d more above\n", start)
 	}
 	for i := start; i < end; i++ {
 		mark := " "
-		if containsString(m.excludes, names[i]) {
+		if slices.Contains(m.excludes, names[i]) {
 			mark = "x"
 		}
-		b.WriteString(fmt.Sprintf("%s [%s] %s\n", cursorFor(i, m.cursor), mark, names[i]))
+		fmt.Fprintf(&b, "%s [%s] %s\n", cursorFor(i, m.cursor), mark, names[i])
 	}
 	if end < len(names) {
-		b.WriteString(fmt.Sprintf("     ... %d more below\n", len(names)-end))
+		fmt.Fprintf(&b, "     ... %d more below\n", len(names)-end)
 	}
 
 	b.WriteString("\n(up/down to move, space to toggle, enter to continue, esc to go back, q to quit)")
@@ -337,14 +342,14 @@ func (m run) updateOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m run) viewOptions() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%s: Options\n\n", m.stepLabel(stepOptions)))
-	b.WriteString(fmt.Sprintf("%s Allow Duplicates: %s\n",
-		cursorFor(optDuplicates, m.cursor), toggleLabel(m.duplicatesAllowed(), m.duplicatesLocked())))
+	fmt.Fprintf(&b, "%s: Options\n\n", m.stepLabel(stepOptions))
+	fmt.Fprintf(&b, "%s Allow Duplicates: %s\n",
+		cursorFor(optDuplicates, m.cursor), toggleLabel(m.duplicatesAllowed(), m.duplicatesLocked()))
 
 	// Shown for information only - the run type decides it, so it gets no
 	// cursor row.
-	b.WriteString(fmt.Sprintf("\n  Special jobs (Freelancer/Mime): %s\n", yesNo(m.specialAllowed())))
-	b.WriteString(fmt.Sprintf("  Fixed by the %s run type; only some run types make them available.\n", m.runType))
+	fmt.Fprintf(&b, "\n  Special jobs (Freelancer/Mime): %s\n", yesNo(m.specialAllowed()))
+	fmt.Fprintf(&b, "  Fixed by the %s run type; only some run types make them available.\n", m.runType)
 
 	b.WriteString("\n(up/down to move, space to toggle, enter to finish, esc to go back, q to quit)")
 	return b.String()
@@ -368,24 +373,24 @@ func (m run) viewSummary() string {
 	var b strings.Builder
 
 	b.WriteString("Summary\n\n")
-	b.WriteString(fmt.Sprintf("Run type:        %s\n", m.runType))
+	fmt.Fprintf(&b, "Run type:        %s\n", m.runType)
 
 	jobSet := m.jobSet
 	if jobSet == "" {
 		jobSet = none
 	}
 
-	b.WriteString(fmt.Sprintf("Job set:         %s\n", jobSet))
-	b.WriteString(fmt.Sprintf("Allow Duplicates: %t\n", m.duplicatesAllowed()))
-	b.WriteString(fmt.Sprintf("Allow Special:    %t\n", m.specialAllowed()))
+	fmt.Fprintf(&b, "Job set:         %s\n", jobSet)
+	fmt.Fprintf(&b, "Allow Duplicates: %t\n", m.duplicatesAllowed())
+	fmt.Fprintf(&b, "Allow Special:    %t\n", m.specialAllowed())
 
 	if len(m.excludes) == 0 {
 		b.WriteString("Excluded jobs:    (none)\n")
 	} else {
-		b.WriteString(fmt.Sprintf("Excluded jobs:    %s\n", strings.Join(m.excludes, ", ")))
+		fmt.Fprintf(&b, "Excluded jobs:    %s\n", strings.Join(m.excludes, ", "))
 	}
 
-	b.WriteString(fmt.Sprintf("\nRun folder: %s\n", m.name))
+	fmt.Fprintf(&b, "\nRun folder: %s\n", m.name)
 
 	b.WriteString("\n(enter to write run folder, r to start over, esc to go back, q to quit without writing)")
 
@@ -458,23 +463,4 @@ func toggleLabel(value, locked bool) string {
 		return yesNo(value) + " (locked)"
 	}
 	return yesNo(value)
-}
-
-func containsString(list []string, target string) bool {
-	for _, s := range list {
-		if s == target {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(list []string, target string) []string {
-	out := make([]string, 0, len(list))
-	for _, s := range list {
-		if s != target {
-			out = append(out, s)
-		}
-	}
-	return out
 }

@@ -225,10 +225,14 @@ Split by whether they'd actually change what the picker writes:
   play-time flavour. Fifth Job and Extra Jobs would also need the writer to stop
   assuming exactly four slots, and the Advance jobs aren't in `jobs.json` at all.
 
-### Open question
+### Closed: the "Pure Chaos" loose end
 
 The Freelancer page mentions "Pure Chaos" as a run type that can assign
 nonstandard jobs, and Regchaos was retired in favour of "Volcano with a
 Duplicates clause". Neither "Pure" nor "Chaos" appears on the current help.php
-run type list. There may be additional run types, or older names for existing
-ones, that aren't documented on the pages read here.
+run type list, so there may be run types, or older names for existing ones,
+that the pages above don't document.
+
+**Decision: not pursuing this.** Nothing in the project will be built or changed
+on the strength of it. The eight run types on the current registration form are
+taken as the complete set. Recorded so it doesn't get re-investigated.

@@ -82,7 +82,7 @@
     },
     {
         "name": "Onion",
-        "description": "Draws each job slot from a fixed pool of jobs that originally appeared in Final Fantasy 3. Can only be used with Regular (Normal) runs, so it does not allow picking a job set.",
+        "description": "Draws each job slot from a fixed pool of jobs that originally appeared in Final Fantasy 3. Sets its own crystal order, so it does not allow picking a job set.",
         "pools": [
             "onion_wind",
             "onion_water",

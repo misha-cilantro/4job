@@ -31,9 +31,9 @@ type run struct {
 	allowDuplicates bool // the user's choice; a run type or job set may force it on
 	name            string
 
-	// Terminal size, from the last tea.WindowSizeMsg. Zero until the first
-	// one arrives; the list views fall back to a default height.
-	width  int
+	// Terminal height, from the last tea.WindowSizeMsg. Zero until the first
+	// one arrives; the list views fall back to a default. Width isn't tracked
+	// because nothing wraps to it yet.
 	height int
 
 	// confirmed is set only when the user accepts the summary. Quitting at

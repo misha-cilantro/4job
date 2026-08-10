@@ -25,7 +25,7 @@ func generateName(m run) string {
 	if len(m.excludes) == 0 {
 		b.WriteString("-all")
 	} else {
-		b.WriteString(fmt.Sprintf("-excl-%d", len(m.excludes)))
+		fmt.Fprintf(&b, "-excl-%d", len(m.excludes))
 	}
 
 	b.WriteString("-opt")
@@ -41,8 +41,7 @@ func generateName(m run) string {
 		b.WriteString("S")
 	}
 
-	t := time.Now()
-	b.WriteString(fmt.Sprintf("-%s", t.Format("20060102150405")))
+	fmt.Fprintf(&b, "-%s", time.Now().Format("20060102150405"))
 
 	return sanitizeFolderName(b.String())
 }
