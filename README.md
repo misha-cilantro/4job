@@ -29,8 +29,9 @@ The wizard walks four steps, then a summary:
      Cycles with `space`, since the three are mutually exclusive.
    - **Fifth Job** — a fifth job when Krile joins.
    - **Extra Jobs** — one of the GBA Advance jobs.
-   - **Forbidden** — a job is crossed out on entering the Void. Adds the rule
-     only; the job is chosen in-game, not at assignment time.
+   - **Forbidden** — a job is crossed out on entering the Void. Cycles between
+     off, rolling which job now, and leaving it for you to pick in-game. Takes a
+     job away rather than adding one, so it never changes the job count.
 
    Whether Freelancer and Mime can be rolled is fixed by the run type, so it's
    shown here but not adjustable.
@@ -59,16 +60,22 @@ Normal-Team 750-excl-1-optN5AF-20260809143000/
   04_earth.txt      chemist
   05_krile.txt      red mage           (Fifth Job)
   06_advance.txt    gladiator          (Extra Jobs)
+  07_forbidden.txt  gladiator          (Forbidden, rolled)
+                    Crossed out on entering the Void. You may no longer use it.
 ```
 
 Rules are written under a job only when one actually applies to it, so a plain
 run with no advanced options writes just the job name, exactly as before.
-Numbering is sequential over the slots rolled, so an Advance job is `05_advance`
-on its own and `06_advance` alongside a fifth job.
+Numbering is sequential, so an Advance job is `05_advance` on its own and
+`06_advance` alongside a fifth job, and the forbidden file follows the last job.
+
+With Forbidden set to roll now, the forbidden file names the job and the job's
+own file gains a line saying it gets crossed out. Set to *by player*, the file
+reads `set by player` with the rule underneath, and nothing is decided for you.
 
 The `-opt` suffix records the modifiers: `D` duplicates, `S` special jobs,
-`N` natural, `U` upgrade, `5` fifth job, `A` Advance job, `F` forbidden, or `X`
-for a run with none of them.
+`N` natural, `U` upgrade, `5` fifth job, `A` Advance job, `FR` forbidden rolled,
+`F` forbidden by player, or `X` for a run with none of them.
 
 If your constraints can't all be met — say you excluded every Earth job on a
 Normal run — the picker relaxes them one at a time, loosest last, and prints a

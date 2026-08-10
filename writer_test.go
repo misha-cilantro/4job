@@ -9,13 +9,18 @@ import (
 	"testing"
 )
 
-// crystalSlots turns four job names into the crystal slots a plain run rolls.
+// crystalSlots turns job names into the crystal slots a plain run rolls.
 func crystalSlots(jobs ...string) []assignedSlot {
 	out := make([]assignedSlot, 0, len(jobs))
 	for _, job := range jobs {
 		out = append(out, assignedSlot{Kind: slotCrystal, Job: job})
 	}
 	return out
+}
+
+// crystalRun is a pickResult holding nothing but crystal slots.
+func crystalRun(jobs ...string) pickResult {
+	return pickResult{Slots: crystalSlots(jobs...)}
 }
 
 // readRun reads back every file in a written run folder, keyed by file name.
@@ -44,7 +49,7 @@ func TestWriteFolderWritesReadableFilesInOrder(t *testing.T) {
 
 	jobs := []string{"knight", "red mage", "ninja", "dragoon"}
 	m := run{name: "test-run", runType: "Normal"}
-	if err := writeFolder(m, crystalSlots(jobs...)); err != nil {
+	if err := writeFolder(m, crystalRun(jobs...)); err != nil {
 		t.Fatalf("writeFolder: %v", err)
 	}
 
@@ -80,10 +85,10 @@ func TestWriteFolderWritesReadableFilesInOrder(t *testing.T) {
 func TestWriteFolderRejectsBadInput(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	if err := writeFolder(run{name: ""}, crystalSlots("a", "b", "c", "d")); err == nil {
+	if err := writeFolder(run{name: ""}, crystalRun("a", "b", "c", "d")); err == nil {
 		t.Error("expected an error for an empty run name")
 	}
-	if err := writeFolder(run{name: "short"}, crystalSlots("a", "b")); err == nil {
+	if err := writeFolder(run{name: "short"}, crystalRun("a", "b")); err == nil {
 		t.Error("expected an error for too few jobs")
 	}
 }
@@ -93,7 +98,7 @@ func TestWriteFolderAlwaysWritesRules(t *testing.T) {
 	t.Chdir(dir)
 
 	m := run{name: "rules-run", runType: "Normal", jobSet: "Team 750", excludes: []string{"bard"}}
-	if err := writeFolder(m, crystalSlots("white mage", "red mage", "geomancer", "chemist")); err != nil {
+	if err := writeFolder(m, crystalRun("white mage", "red mage", "geomancer", "chemist")); err != nil {
 		t.Fatalf("writeFolder: %v", err)
 	}
 
@@ -118,7 +123,7 @@ func TestFifthJobWritesKrileFileWithItsRules(t *testing.T) {
 	slots := append(crystalSlots("knight", "red mage", "ninja", "dragoon"),
 		assignedSlot{Kind: slotFifth, Job: "bard"})
 
-	if err := writeFolder(m, slots); err != nil {
+	if err := writeFolder(m, pickResult{Slots: slots}); err != nil {
 		t.Fatalf("writeFolder: %v", err)
 	}
 
@@ -147,7 +152,7 @@ func TestNaturalJobsWritesCharacterRules(t *testing.T) {
 	t.Chdir(dir)
 
 	m := run{name: "natural-run", runType: "Normal", restriction: restrictNatural}
-	if err := writeFolder(m, crystalSlots("black mage", "red mage", "ninja", "dragoon")); err != nil {
+	if err := writeFolder(m, crystalRun("black mage", "red mage", "ninja", "dragoon")); err != nil {
 		t.Fatalf("writeFolder: %v", err)
 	}
 
@@ -181,7 +186,7 @@ func TestNaturalJobsWithFifthJobGivesKrileHerOwn(t *testing.T) {
 	slots := append(crystalSlots("knight", "red mage", "ninja", "dragoon"),
 		assignedSlot{Kind: slotFifth, Job: "bard"})
 
-	if err := writeFolder(m, slots); err != nil {
+	if err := writeFolder(m, pickResult{Slots: slots}); err != nil {
 		t.Fatalf("writeFolder: %v", err)
 	}
 
@@ -216,7 +221,7 @@ func TestAdvanceJobFileNumbering(t *testing.T) {
 			}
 			slots = append(slots, assignedSlot{Kind: slotAdvance, Job: "oracle"})
 
-			if err := writeFolder(m, slots); err != nil {
+			if err := writeFolder(m, pickResult{Slots: slots}); err != nil {
 				t.Fatalf("writeFolder: %v", err)
 			}
 

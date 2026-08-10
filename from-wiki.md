@@ -225,9 +225,12 @@ Implemented:
 - **Extra Jobs** — adds an Advance job (Gladiator, Oracle or Cannoneer) from a
   new `advance` pool. No crystal and no job set covers these, so nothing but the
   excluded jobs restricts that slot.
-- **Forbidden** — rule only, no extra roll. The job it crosses out is decided
-  in-game on entering the Void rather than at assignment time, so the app just
-  records the rule in the rules file.
+- **Forbidden** — off, rolled now, or left to the player. The rules don't say
+  who decides which job is crossed out, so both readings are offered. Rolled
+  mode picks one of the run's own assigned jobs and names it in a `_forbidden`
+  file; player mode writes the rule and leaves the choice open. Either way it
+  takes a job away rather than adding one, so it's not a slot and never changes
+  the job count.
 
 Not implemented:
 

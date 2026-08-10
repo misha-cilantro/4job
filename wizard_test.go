@@ -1,6 +1,7 @@
 package main
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -118,7 +119,7 @@ func TestWizardFullFlowWritesARun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pickJobs: %v", err)
 	}
-	if err := writeFolder(m, res.Slots); err != nil {
+	if err := writeFolder(m, res); err != nil {
 		t.Fatalf("writeFolder: %v", err)
 	}
 
@@ -292,7 +293,6 @@ func TestWizardTogglesExtraJobSlots(t *testing.T) {
 	}{
 		{optFifthJob, func(m run) bool { return m.fifthJob }, "Fifth Job"},
 		{optExtraJobs, func(m run) bool { return m.extraJobs }, "Extra Jobs"},
-		{optForbidden, func(m run) bool { return m.forbidden }, "Forbidden"},
 	} {
 		at := atOptions(t, "Normal")
 		at, _ = press(t, at, downTo(tc.row)...)
@@ -326,6 +326,65 @@ func TestWizardTogglesExtraJobSlots(t *testing.T) {
 	}
 }
 
+func TestWizardCyclesForbidden(t *testing.T) {
+	m := atOptions(t, "Normal")
+	m, _ = press(t, m, downTo(optForbidden)...)
+
+	if m.forbidden != forbiddenOff {
+		t.Fatalf("forbidden starts at %d, want forbiddenOff", m.forbidden)
+	}
+
+	// Off, then rolled up front, then left to the player, then back to off.
+	for i, want := range []int{forbiddenRolled, forbiddenPlayer, forbiddenOff} {
+		m, _ = press(t, m, special(tea.KeySpace))
+		if m.forbidden != want {
+			t.Fatalf("after %d presses forbidden is %d, want %d", i+1, m.forbidden, want)
+		}
+	}
+}
+
+// TestForbiddenRollsOneOfTheRunsOwnJobs checks the rolled mode crosses out a job
+// the run actually has, rather than any job in the game.
+func TestForbiddenRollsOneOfTheRunsOwnJobs(t *testing.T) {
+	m := run{runType: "Normal", forbidden: forbiddenRolled}
+
+	seen := map[string]bool{}
+	for range iterations {
+		res, err := pickJobs(m)
+		if err != nil {
+			t.Fatalf("pickJobs: %v", err)
+		}
+		if res.Forbidden == "" {
+			t.Fatal("rolled mode produced no forbidden job")
+		}
+		if !slices.Contains(res.Jobs(), res.Forbidden) {
+			t.Fatalf("forbidden job %q is not one of the assigned jobs %v", res.Forbidden, res.Jobs())
+		}
+		seen[res.Forbidden] = true
+	}
+
+	// Over many runs it shouldn't always land on the same slot's job.
+	if len(seen) < crystalCount {
+		t.Errorf("only ever forbade %d distinct jobs: %v", len(seen), slices.Sorted(maps.Keys(seen)))
+	}
+}
+
+func TestForbiddenLeftToPlayerRollsNothing(t *testing.T) {
+	for _, mode := range []int{forbiddenOff, forbiddenPlayer} {
+		m := run{runType: "Normal", forbidden: mode}
+		res, err := pickJobs(m)
+		if err != nil {
+			t.Fatalf("pickJobs: %v", err)
+		}
+		if res.Forbidden != "" {
+			t.Errorf("mode %d rolled %q; it should leave the choice open", mode, res.Forbidden)
+		}
+		if len(res.Slots) != crystalCount {
+			t.Errorf("mode %d changed the slot count to %d", mode, len(res.Slots))
+		}
+	}
+}
+
 // TestWizardAdvancedOptionsReachTheWrittenRun is the end-to-end check: options
 // chosen in the wizard have to survive into the files on disk.
 func TestWizardAdvancedOptionsReachTheWrittenRun(t *testing.T) {
@@ -339,7 +398,7 @@ func TestWizardAdvancedOptionsReachTheWrittenRun(t *testing.T) {
 	m, _ = press(t, m, special(tea.KeyDown), special(tea.KeySpace))
 	m, _ = press(t, m, special(tea.KeyDown), special(tea.KeySpace))
 
-	if m.restriction != restrictNatural || !m.fifthJob || !m.extraJobs || !m.forbidden {
+	if m.restriction != restrictNatural || !m.fifthJob || !m.extraJobs || m.forbidden != forbiddenRolled {
 		t.Fatalf("options did not take: %+v", m)
 	}
 
@@ -353,7 +412,7 @@ func TestWizardAdvancedOptionsReachTheWrittenRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pickJobs: %v", err)
 	}
-	if err := writeFolder(m, res.Slots); err != nil {
+	if err := writeFolder(m, res); err != nil {
 		t.Fatalf("writeFolder: %v", err)
 	}
 
