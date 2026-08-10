@@ -2,7 +2,10 @@ module 4job
 
 go 1.26.5
 
-require charm.land/bubbletea/v2 v2.0.8
+require (
+	charm.land/bubbletea/v2 v2.0.8
+	charm.land/lipgloss/v2 v2.0.5
+)
 
 require (
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect

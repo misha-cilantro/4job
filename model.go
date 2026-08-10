@@ -201,24 +201,24 @@ func (m run) updateRunType(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m run) viewRunType() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s: Pick a run type\n\n", m.stepLabel(stepRunType))
+	b.WriteString(title(m.stepLabel(stepRunType) + ": Pick a run type"))
 
 	start, end := visibleRange(len(RunTypes), m.cursor, m.listRows(runTypeChrome))
 
 	if start > 0 {
-		fmt.Fprintf(&b, "  ... %d more above\n", start)
+		fmt.Fprintf(&b, "%s\n", dimStyle.Render(fmt.Sprintf("  ... %d more above", start)))
 	}
 	for i := start; i < end; i++ {
-		fmt.Fprintf(&b, "%s %s\n", cursorFor(i, m.cursor), RunTypes[i].Name)
+		fmt.Fprintf(&b, "%s %s\n", cursorFor(i, m.cursor), highlight(RunTypes[i].Name, i == m.cursor))
 		if i == m.cursor {
-			fmt.Fprintf(&b, "    %s\n", RunTypes[i].Description)
+			fmt.Fprintf(&b, "    %s\n", dimStyle.Render(RunTypes[i].Description))
 		}
 	}
 	if end < len(RunTypes) {
-		fmt.Fprintf(&b, "  ... %d more below\n", len(RunTypes)-end)
+		fmt.Fprintf(&b, "%s\n", dimStyle.Render(fmt.Sprintf("  ... %d more below", len(RunTypes)-end)))
 	}
 
-	b.WriteString("\n(up/down to move, enter to select, q to quit)")
+	b.WriteString(help("(up/down to move, enter to select, q to quit)"))
 	return b.String()
 }
 
@@ -250,16 +250,17 @@ func (m run) updateJobSet(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m run) viewJobSet() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s: Pick a job set (optional)\n\n", m.stepLabel(stepJobSet))
-	fmt.Fprintf(&b, "%s (none - no job set restriction)\n", cursorFor(0, m.cursor))
+	b.WriteString(title(m.stepLabel(stepJobSet) + ": Pick a job set (optional)"))
+	fmt.Fprintf(&b, "%s %s\n", cursorFor(0, m.cursor),
+		highlight("(none - no job set restriction)", m.cursor == 0))
 	for i, js := range JobSets {
 		idx := i + 1
-		fmt.Fprintf(&b, "%s %s\n", cursorFor(idx, m.cursor), js.Name)
+		fmt.Fprintf(&b, "%s %s\n", cursorFor(idx, m.cursor), highlight(js.Name, idx == m.cursor))
 		if idx == m.cursor {
-			fmt.Fprintf(&b, "    %s\n", js.Description)
+			fmt.Fprintf(&b, "    %s\n", dimStyle.Render(js.Description))
 		}
 	}
-	b.WriteString("\n(up/down to move, enter to select, esc to go back, q to quit)")
+	b.WriteString(help("(up/down to move, enter to select, esc to go back, q to quit)"))
 	return b.String()
 }
 
@@ -298,28 +299,28 @@ func (m run) viewExcludes() string {
 	names := AllJobNames()
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%s: Exclude any jobs? (e.g. to avoid recent repeats) [%d excluded]\n\n",
-		m.stepLabel(stepExcludes), len(m.excludes))
+	b.WriteString(title(fmt.Sprintf("%s: Exclude any jobs? (e.g. to avoid recent repeats) [%d excluded]",
+		m.stepLabel(stepExcludes), len(m.excludes))))
 
 	// The full roster is 20-odd rows, which overflows a short terminal, so
 	// only a window around the cursor is drawn.
 	start, end := visibleRange(len(names), m.cursor, m.listRows(excludesChrome))
 
 	if start > 0 {
-		fmt.Fprintf(&b, "     ... %d more above\n", start)
+		fmt.Fprintf(&b, "%s\n", dimStyle.Render(fmt.Sprintf("     ... %d more above", start)))
 	}
 	for i := start; i < end; i++ {
-		mark := " "
+		mark := "[ ]"
 		if slices.Contains(m.excludes, names[i]) {
-			mark = "x"
+			mark = markStyle.Render("[x]")
 		}
-		fmt.Fprintf(&b, "%s [%s] %s\n", cursorFor(i, m.cursor), mark, names[i])
+		fmt.Fprintf(&b, "%s %s %s\n", cursorFor(i, m.cursor), mark, highlight(names[i], i == m.cursor))
 	}
 	if end < len(names) {
-		fmt.Fprintf(&b, "     ... %d more below\n", len(names)-end)
+		fmt.Fprintf(&b, "%s\n", dimStyle.Render(fmt.Sprintf("     ... %d more below", len(names)-end)))
 	}
 
-	b.WriteString("\n(up/down to move, space to toggle, enter to continue, esc to go back, q to quit)")
+	b.WriteString(help("(up/down to move, space to toggle, enter to continue, esc to go back, q to quit)"))
 	return b.String()
 }
 
@@ -372,27 +373,26 @@ func (m run) updateOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m run) viewOptions() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s: Options\n\n", m.stepLabel(stepOptions))
+	b.WriteString(title(m.stepLabel(stepOptions) + ": Options"))
 
-	fmt.Fprintf(&b, "%s Allow Duplicates: %s\n",
-		cursorFor(optDuplicates, m.cursor), toggleLabel(m.duplicatesAllowed(), m.duplicatesLocked()))
-	fmt.Fprintf(&b, "%s Job restrictions: %s\n",
-		cursorFor(optRestriction, m.cursor), restrictionName(m.restriction))
-	fmt.Fprintf(&b, "%s Fifth Job (Krile): %s\n",
-		cursorFor(optFifthJob, m.cursor), yesNo(m.fifthJob))
-	fmt.Fprintf(&b, "%s Extra Jobs (one Advance job): %s\n",
-		cursorFor(optExtraJobs, m.cursor), yesNo(m.extraJobs))
-	fmt.Fprintf(&b, "%s Forbidden (a job is crossed out in the Void): %s\n",
-		cursorFor(optForbidden, m.cursor), forbiddenName(m.forbidden))
+	option := func(row int, label, value string) {
+		fmt.Fprintf(&b, "%s %s %s\n", cursorFor(row, m.cursor),
+			highlight(label+":", row == m.cursor), value)
+	}
+	option(optDuplicates, "Allow Duplicates", toggleLabel(m.duplicatesAllowed(), m.duplicatesLocked()))
+	option(optRestriction, "Job restrictions", valueStyle.Render(restrictionName(m.restriction)))
+	option(optFifthJob, "Fifth Job (Krile)", valueStyle.Render(yesNo(m.fifthJob)))
+	option(optExtraJobs, "Extra Jobs (one Advance job)", valueStyle.Render(yesNo(m.extraJobs)))
+	option(optForbidden, "Forbidden (a job is crossed out in the Void)", valueStyle.Render(forbiddenName(m.forbidden)))
 
-	fmt.Fprintf(&b, "\n  %s\n", restrictionRules[m.restriction])
+	fmt.Fprintf(&b, "\n  %s\n", dimStyle.Render(restrictionRules[m.restriction]))
 
 	// Shown for information only - the run type decides it, so it gets no
 	// cursor row.
-	fmt.Fprintf(&b, "  Special jobs (Freelancer/Mime): %s, fixed by the %s run type.\n",
-		yesNo(m.specialAllowed()), m.runType)
+	fmt.Fprintf(&b, "  %s\n", dimStyle.Render(fmt.Sprintf(
+		"Special jobs (Freelancer/Mime): %s, fixed by the %s run type.", yesNo(m.specialAllowed()), m.runType)))
 
-	b.WriteString("\n(up/down to move, space to toggle, enter to finish, esc to go back, q to quit)")
+	b.WriteString(help("(up/down to move, space to toggle, enter to finish, esc to go back, q to quit)"))
 	return b.String()
 }
 
@@ -413,35 +413,40 @@ func (m run) updateSummary(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m run) viewSummary() string {
 	var b strings.Builder
 
-	b.WriteString("Summary\n\n")
-	fmt.Fprintf(&b, "Run type:        %s\n", m.runType)
+	b.WriteString(title("Summary"))
+
+	// Labels padded before styling, since style codes would throw the width off.
+	field := func(label, value string) {
+		fmt.Fprintf(&b, "%s %s\n", dimStyle.Render(fmt.Sprintf("%-18s", label+":")), valueStyle.Render(value))
+	}
 
 	jobSet := m.jobSet
 	if jobSet == "" {
 		jobSet = none
 	}
 
-	fmt.Fprintf(&b, "Job set:          %s\n", jobSet)
-	fmt.Fprintf(&b, "Job restrictions: %s\n", restrictionName(m.restriction))
-	fmt.Fprintf(&b, "Allow Duplicates: %t\n", m.duplicatesAllowed())
-	fmt.Fprintf(&b, "Allow Special:    %t\n", m.specialAllowed())
+	field("Run type", m.runType)
+	field("Job set", jobSet)
+	field("Job restrictions", restrictionName(m.restriction))
+	field("Allow Duplicates", yesNo(m.duplicatesAllowed()))
+	field("Allow Special", yesNo(m.specialAllowed()))
 
 	if extras := m.extraSlotNames(); len(extras) > 0 {
-		fmt.Fprintf(&b, "Extra jobs:       %s\n", strings.Join(extras, ", "))
+		field("Extra jobs", strings.Join(extras, ", "))
 	}
 	if m.forbidden != forbiddenOff {
-		fmt.Fprintf(&b, "Forbidden:        %s\n", forbiddenName(m.forbidden))
+		field("Forbidden", forbiddenName(m.forbidden))
 	}
 
 	if len(m.excludes) == 0 {
-		b.WriteString("Excluded jobs:    (none)\n")
+		field("Excluded jobs", none)
 	} else {
-		fmt.Fprintf(&b, "Excluded jobs:    %s\n", strings.Join(m.excludes, ", "))
+		field("Excluded jobs", strings.Join(m.excludes, ", "))
 	}
 
-	fmt.Fprintf(&b, "\nRun folder: %s\n", m.name)
+	fmt.Fprintf(&b, "\n%s %s\n", dimStyle.Render("Run folder:"), activeStyle.Render(m.name))
 
-	b.WriteString("\n(enter to write run folder, r to start over, esc to go back, q to quit without writing)")
+	b.WriteString(help("(enter to write run folder, r to start over, esc to go back, q to quit without writing)"))
 
 	return b.String()
 }
@@ -495,7 +500,7 @@ func visibleRange(total, cursor, rows int) (start, end int) {
 
 func cursorFor(i, cursor int) string {
 	if i == cursor {
-		return ">"
+		return cursorStyle.Render(">")
 	}
 	return " "
 }
@@ -508,8 +513,9 @@ func yesNo(value bool) string {
 }
 
 func toggleLabel(value, locked bool) string {
+	label := valueStyle.Render(yesNo(value))
 	if locked {
-		return yesNo(value) + " (locked)"
+		return label + " " + dimStyle.Render("(locked)")
 	}
-	return yesNo(value)
+	return label
 }

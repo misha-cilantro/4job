@@ -5,6 +5,7 @@ import (
 	"os"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 /*
@@ -64,34 +65,38 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Picking jobs...\n\n")
+	// lipgloss.Writer strips styling when the terminal can't show it, or when
+	// the output is redirected. Style.Render always emits the escape codes, so
+	// anything styled has to go through it rather than straight to stdout.
+	out := lipgloss.Writer
+
 	res, err := pickJobs(m)
 	if err != nil {
 		fail(err)
 	}
 
 	for i, s := range res.Slots {
-		fmt.Printf("  %-14s %s\n", slotFilename(s, i)+".txt", s.Job)
+		fmt.Fprintf(out, "  %s %s\n",
+			dimStyle.Render(fmt.Sprintf("%-14s", slotFilename(s, i)+".txt")), activeStyle.Render(s.Job))
 	}
-	fmt.Println()
+	if res.Forbidden != "" {
+		fmt.Fprintf(out, "  %s %s\n",
+			dimStyle.Render(fmt.Sprintf("%-14s", "forbidden")), markStyle.Render(res.Forbidden))
+	}
+	fmt.Fprintln(out)
 
 	for _, note := range res.Notes {
-		fmt.Printf("Note: %s\n", note)
+		fmt.Fprintf(out, "%s %s\n", dimStyle.Render("Note:"), note)
 	}
 	if len(res.Notes) > 0 {
-		fmt.Println()
+		fmt.Fprintln(out)
 	}
 
-	if res.Forbidden != "" {
-		fmt.Printf("  forbidden:     %s\n\n", res.Forbidden)
-	}
-
-	fmt.Printf("Writing run folder...\n\n")
 	if err := writeFolder(m, res); err != nil {
 		fail(err)
 	}
 
-	fmt.Printf("Done! Your run is in ./%s\n", m.name)
+	fmt.Fprintf(out, "Done! Your run is in %s\n", valueStyle.Render("./"+m.name))
 }
 
 func fail(err error) {

@@ -43,6 +43,10 @@ point writes nothing.
 continue, `esc` or `backspace` to go back, `r` to start over from the summary,
 `q` or `ctrl+c` to quit.
 
+Colours come from the terminal's own 16-colour palette rather than fixed RGB, so
+the wizard fits whatever theme you already run. It drops to plain text on a
+terminal without colour, when output is redirected, and when `NO_COLOR` is set.
+
 ## Output
 
 A folder in the working directory, named from the run's settings plus a
@@ -110,6 +114,7 @@ changing the data — and prefer it to re-reading the wiki.
 | `model.go` | Bubble Tea wizard: steps, keys, views, list scrolling |
 | `picker.go` | Rolling jobs, job set restrictions, the relaxation ladder |
 | `rules.go` | Job restriction modes and the rule text written into the files |
+| `styles.go` | The handful of lipgloss styles the views share |
 | `writer.go` | Creating the run folder and its files |
 | `name.go` | Building and sanitising the folder name |
 | `data.go` | Loading and validating the embedded JSON |
