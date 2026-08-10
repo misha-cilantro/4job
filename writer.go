@@ -11,9 +11,12 @@ import (
 // crystalFiles names the four crystal slots in unlock order.
 var crystalFiles = []string{"wind", "water", "fire", "earth"}
 
-// rulesFile holds the run's settings and the rules that apply to the whole run
-// rather than to one job. Numbered 00 so it sorts above the jobs.
-const rulesFile = "00_rules"
+// The two files that aren't a job. Both are numbered 00 so they sort above the
+// jobs, and "instructions" sorts before "rules" so it's the first thing seen.
+const (
+	instructionsFile = "00_instructions"
+	rulesFile        = "00_rules"
+)
 
 // slotFilename is the file a slot's job is written to, without its extension.
 // Numbering is sequential over the slots actually rolled, so an Advance job
@@ -61,6 +64,9 @@ func writeFolder(m run, res pickResult) error {
 		return err
 	}
 
+	if err := writeFile(instructionsFile, m.name, instructions(m, res)); err != nil {
+		return err
+	}
 	if err := writeFile(rulesFile, m.name, runRules(m, res)); err != nil {
 		return err
 	}

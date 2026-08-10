@@ -145,6 +145,54 @@ func slotNotes(m run, res pickResult, position int) []string {
 	return notes
 }
 
+// crystalTriggers say when each crystal's job becomes available, so the player
+// knows which file to open when.
+var crystalTriggers = []string{
+	"When the Wind Crystal shatters, at the end of the Wind Shrine.",
+	"When the Water Crystal shatters, in Walse Tower.",
+	"When the Fire Crystal shatters, in Karnak Castle.",
+	"When the Earth Crystal shatters, in the Ronka Ruins.",
+}
+
+// slotTrigger says when a slot's file should be opened.
+func slotTrigger(s assignedSlot, position int) string {
+	switch s.Kind {
+	case slotFifth:
+		return "When Krile joins the party."
+	case slotAdvance:
+		return "Once the Advance jobs are available in your version of the game."
+	}
+	if position < len(crystalTriggers) {
+		return crystalTriggers[position]
+	}
+	return "When the next job unlocks."
+}
+
+// instructions is the contents of the instructions file: which file to open
+// when. It lists only the files this run actually has.
+func instructions(m run, res pickResult) string {
+	var b strings.Builder
+
+	b.WriteString("Open one file at a time, when its moment comes. No peeking ahead.\n\n")
+	fmt.Fprintf(&b, "  %-18s %s\n", rulesFile+".txt", "Now, before you start.")
+
+	for i, s := range res.Slots {
+		fmt.Fprintf(&b, "  %-18s %s\n", slotFilename(s, i)+".txt", slotTrigger(s, i))
+	}
+	if m.forbidden != forbiddenOff {
+		fmt.Fprintf(&b, "  %-18s %s\n", forbiddenFilename(res.Slots)+".txt", "On entering the Void.")
+	}
+
+	// Upgrade runs decouple learning the job from switching to it, so the file
+	// still gets opened at the crystal but acting on it is the player's call.
+	if m.restriction == restrictUpgrade {
+		b.WriteString("\nUpgrade Jobs: opening a file tells you the job. When to switch to it is your choice,\n")
+		b.WriteString("and switching retires everything before it.\n")
+	}
+
+	return b.String()
+}
+
 // runRules is the contents of the rules file: what the run is, what was rolled,
 // and the rules that apply to the whole run rather than to one slot.
 func runRules(m run, res pickResult) string {

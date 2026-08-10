@@ -55,6 +55,7 @@ a one-line stream source still reads correctly:
 
 ```
 Normal-Team 750-excl-1-optN5AF-20260809143000/
+  00_instructions.txt  which file to open when
   00_rules.txt      the run's settings and its whole-run rules
   01_wind.txt       blue mage
                     Bartz must always be a blue mage.
@@ -67,6 +68,10 @@ Normal-Team 750-excl-1-optN5AF-20260809143000/
   07_forbidden.txt  gladiator          (Forbidden, rolled)
                     Crossed out on entering the Void. You may no longer use it.
 ```
+
+`00_instructions.txt` lists exactly the files this run has and when to open each
+one — at the Wind Shrine, at Walse Tower, when Krile joins, on entering the Void
+— so you can roll a run now and play it blind later.
 
 Rules are written under a job only when one actually applies to it, so a plain
 run with no advanced options writes just the job name, exactly as before.

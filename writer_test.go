@@ -115,6 +115,98 @@ func TestWriteFolderAlwaysWritesRules(t *testing.T) {
 	}
 }
 
+func TestInstructionsListEveryFileInOrder(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	m := run{name: "instr-run", runType: "Normal", fifthJob: true, extraJobs: true,
+		forbidden: forbiddenPlayer}
+	slots := append(crystalSlots("knight", "red mage", "ninja", "dragoon"),
+		assignedSlot{Kind: slotFifth, Job: "bard"},
+		assignedSlot{Kind: slotAdvance, Job: "oracle"})
+
+	if err := writeFolder(m, pickResult{Slots: slots}); err != nil {
+		t.Fatalf("writeFolder: %v", err)
+	}
+
+	files := readRun(t, dir, m.name)
+	body, ok := files[instructionsFile+".txt"]
+	if !ok {
+		t.Fatalf("no %s.txt written; got %v", instructionsFile, fileNames(files))
+	}
+
+	// Every other file in the run should be listed, and nothing else should be.
+	for name := range files {
+		if name == instructionsFile+".txt" {
+			continue
+		}
+		if !strings.Contains(body, name) {
+			t.Errorf("instructions do not mention %s:\n%s", name, body)
+		}
+	}
+
+	// Listed in the order they're opened, which is the order they sort in.
+	var lastAt int
+	for _, name := range fileNames(files) {
+		if name == instructionsFile+".txt" {
+			continue
+		}
+		at := strings.Index(body, name)
+		if at < lastAt {
+			t.Errorf("%s is listed out of order:\n%s", name, body)
+		}
+		lastAt = at
+	}
+
+	for _, want := range []string{"Wind Shrine", "Walse Tower", "Karnak", "Ronka",
+		"Krile joins", "Advance jobs", "the Void"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("instructions do not say when to open the %q file:\n%s", want, body)
+		}
+	}
+}
+
+func TestInstructionsOmitFilesTheRunDoesNotHave(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	m := run{name: "plain-run", runType: "Normal"}
+	if err := writeFolder(m, crystalRun("knight", "red mage", "ninja", "dragoon")); err != nil {
+		t.Fatalf("writeFolder: %v", err)
+	}
+
+	body := readRun(t, dir, m.name)[instructionsFile+".txt"]
+	for _, absent := range []string{"krile", "advance", "forbidden"} {
+		if strings.Contains(body, absent) {
+			t.Errorf("instructions mention %q, which this run has no file for:\n%s", absent, body)
+		}
+	}
+}
+
+func TestInstructionsExplainUpgradeTiming(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	m := run{name: "upgrade-run", runType: "Normal", restriction: restrictUpgrade}
+	if err := writeFolder(m, crystalRun("knight", "red mage", "ninja", "dragoon")); err != nil {
+		t.Fatalf("writeFolder: %v", err)
+	}
+
+	body := readRun(t, dir, m.name)[instructionsFile+".txt"]
+	if !strings.Contains(body, "Upgrade Jobs") {
+		t.Errorf("upgrade runs unlock at the player's pace; the instructions should say so:\n%s", body)
+	}
+
+	// Other restriction modes read the files at the crystals, so they need no note.
+	m2 := run{name: "natural-run", runType: "Normal", restriction: restrictNatural}
+	if err := writeFolder(m2, crystalRun("knight", "red mage", "ninja", "dragoon")); err != nil {
+		t.Fatalf("writeFolder: %v", err)
+	}
+	if body := readRun(t, dir, m2.name)[instructionsFile+".txt"]; strings.Contains(body, "Upgrade Jobs") {
+		t.Errorf("natural run should not carry the upgrade note:\n%s", body)
+	}
+}
+
 func TestFifthJobWritesKrileFileWithItsRules(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
