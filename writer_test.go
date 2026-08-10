@@ -115,6 +115,47 @@ func TestWriteFolderAlwaysWritesRules(t *testing.T) {
 	}
 }
 
+// TestRulesFileSpoilsNothing is the point of the rules file: it's read before the
+// run starts, so it must not name a single assigned job. It used to list the
+// whole roll, and the rolled Forbidden rule named its job too.
+func TestRulesFileSpoilsNothing(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	// Assigned jobs and excluded jobs are kept disjoint, since the excludes do
+	// legitimately appear in the file - the player chose them.
+	assigned := []string{"knight", "red mage", "ninja", "dragoon"}
+	m := run{name: "spoiler-run", runType: "Normal", jobSet: "Team 375",
+		excludes:    []string{"bard", "chemist"},
+		restriction: restrictNatural,
+		fifthJob:    true,
+		extraJobs:   true,
+		forbidden:   forbiddenRolled,
+	}
+	slots := append(crystalSlots(assigned...),
+		assignedSlot{Kind: slotFifth, Job: "summoner"},
+		assignedSlot{Kind: slotAdvance, Job: "oracle"})
+	res := pickResult{Slots: slots, Forbidden: "ninja"}
+
+	if err := writeFolder(m, res); err != nil {
+		t.Fatalf("writeFolder: %v", err)
+	}
+
+	rules := readRun(t, dir, m.name)[rulesFile+".txt"]
+	for _, job := range append(res.Jobs(), res.Forbidden) {
+		if strings.Contains(rules, job) {
+			t.Errorf("rules file names the assigned job %q:\n%s", job, rules)
+		}
+	}
+
+	// It should still say what kind of run it is.
+	for _, want := range []string{"Normal run", "Team 375", "natural jobs", "Forbidden"} {
+		if !strings.Contains(rules, want) {
+			t.Errorf("rules file no longer mentions %q:\n%s", want, rules)
+		}
+	}
+}
+
 func TestInstructionsListEveryFileInOrder(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

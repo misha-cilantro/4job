@@ -76,16 +76,10 @@ func main() {
 		fail(err)
 	}
 
-	for i, s := range res.Slots {
-		fmt.Fprintf(out, "  %s %s\n",
-			dimStyle.Render(fmt.Sprintf("%-14s", slotFilename(s, i)+".txt")), activeStyle.Render(s.Job))
-	}
-	if res.Forbidden != "" {
-		fmt.Fprintf(out, "  %s %s\n",
-			dimStyle.Render(fmt.Sprintf("%-14s", "forbidden")), markStyle.Render(res.Forbidden))
-	}
-	fmt.Fprintln(out)
-
+	// The rolled jobs are deliberately never printed. Whoever ran the wizard is
+	// usually the one about to play, and the run folder is built to be opened one
+	// file at a time - printing the roll here would undo that. The notes below
+	// name slots and pools but no jobs, so they're safe to show.
 	for _, note := range res.Notes {
 		fmt.Fprintf(out, "%s %s\n", dimStyle.Render("Note:"), note)
 	}
@@ -98,6 +92,8 @@ func main() {
 	}
 
 	fmt.Fprintf(out, "Done! Your run is in %s\n", valueStyle.Render("./"+m.name))
+	fmt.Fprintf(out, "%s\n", dimStyle.Render(
+		"Your jobs aren't shown here, so they stay a surprise. Start with "+instructionsFile+".txt."))
 }
 
 func fail(err error) {

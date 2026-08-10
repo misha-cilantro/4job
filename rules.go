@@ -193,10 +193,13 @@ func instructions(m run, res pickResult) string {
 	return b.String()
 }
 
-// runRules is the contents of the rules file: what the run is, what was rolled,
-// and the rules that apply to the whole run rather than to one slot.
+// runRules is the contents of the rules file: what the run is and the rules that
+// apply to the whole run rather than to one slot.
+//
+// It names no assigned job. This file is read before the run starts, so listing
+// the roll here would spoil every job file at once - which is what the
+// instructions file is at pains to avoid.
 func runRules(m run, res pickResult) string {
-	slots := res.Slots
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "Four Job Fiesta - %s run\n\n", m.runType)
@@ -211,11 +214,6 @@ func runRules(m run, res pickResult) string {
 	fmt.Fprintf(&b, "Forbidden:        %s\n", forbiddenName(m.forbidden))
 	if m.specialAllowed() {
 		fmt.Fprintf(&b, "Special jobs:     %s may be assigned\n", strings.Join(SpecialJobs(), " and "))
-	}
-
-	b.WriteString("\nJobs\n")
-	for i, s := range slots {
-		fmt.Fprintf(&b, "  %-14s %s\n", slotFilename(s, i)+".txt", s.Job)
 	}
 
 	b.WriteString("\nRules\n")
@@ -245,11 +243,11 @@ func runRuleLines(m run, res pickResult) []string {
 
 	switch m.forbidden {
 	case forbiddenRolled:
-		if res.Forbidden != "" {
-			rules = append(rules,
-				fmt.Sprintf("Forbidden: %s is crossed out on entering the Void, and may no longer be used. Rolled in advance.",
-					res.Forbidden))
-		}
+		// Deliberately doesn't name the job: this file is read first, and the
+		// forbidden job is one of the assigned ones.
+		rules = append(rules,
+			fmt.Sprintf("Forbidden: on entering the Void, one of your jobs is crossed out and may no longer be used. Which one is already decided - open %s.txt when you get there.",
+				forbiddenFilename(res.Slots)))
 	case forbiddenPlayer:
 		rules = append(rules,
 			"Forbidden: on entering the Void, choose one of your jobs to cross out. It may no longer be used.")

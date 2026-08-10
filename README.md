@@ -85,6 +85,10 @@ Normal-Team 750-excl-1-optN5AF-20260809143000/
 one — at the Wind Shrine, at Walse Tower, when Krile joins, on entering the Void
 — so you can roll a run now and play it blind later.
 
+Nothing spoils the roll. The app never prints your jobs to the terminal, and
+`00_rules.txt` describes the run without naming a single assigned job, so the only
+way to see one is to open its file. Open them early if you'd rather know.
+
 Rules are written under a job only when one actually applies to it, so a plain
 run with no advanced options writes just the job name, exactly as before.
 Numbering is sequential, so an Advance job is `05_advance` on its own and
