@@ -42,9 +42,10 @@ type run struct {
 	extraJobs   bool
 	forbidden   int
 
-	// Terminal height, from the last tea.WindowSizeMsg. Zero until the first
-	// one arrives; the list views fall back to a default. Width isn't tracked
-	// because nothing wraps to it yet.
+	// Terminal size, from the last tea.WindowSizeMsg. Both are zero until the
+	// first one arrives: the list views then fall back to a default height, and
+	// a zero width means "don't wrap".
+	width  int
 	height int
 
 	// confirmed is set only when the user accepts the summary. Quitting at

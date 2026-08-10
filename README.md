@@ -54,6 +54,11 @@ Colours come from the terminal's own 16-colour palette rather than fixed RGB, so
 the wizard fits whatever theme you already run. It drops to plain text on a
 terminal without colour, when output is redirected, and when `NO_COLOR` is set.
 
+Text wraps to the terminal width, and the two long lists scroll to its height —
+both recomputed as you resize. Very narrow or very short terminals stop shrinking
+at a floor (`minTextWidth`, `minListRows`) and overflow instead, on the grounds
+that a column of single syllables is worse than a little scrollback.
+
 ## Output
 
 A folder in the working directory, named from the run's settings plus a

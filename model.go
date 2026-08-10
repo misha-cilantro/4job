@@ -100,7 +100,7 @@ func (m run) Init() tea.Cmd {
 func (m run) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.height = msg.Height
+		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
@@ -133,6 +133,11 @@ func (m run) handleKey(keyMsg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m run) View() tea.View {
+	return tea.NewView(m.render())
+}
+
+// render draws the active step, wrapped to the terminal width.
+func (m run) render() string {
 	var s string
 	switch m.step {
 	case stepRunType:
@@ -146,7 +151,12 @@ func (m run) View() tea.View {
 	case stepSummary:
 		s = m.viewSummary()
 	}
-	return tea.NewView(s)
+
+	// Catch every view in one place, including lines a step composes from
+	// several pieces. The scrolling steps wrap their own headers, footers and
+	// descriptions first so they can count the rows those take; wrapping
+	// already-wrapped text changes nothing.
+	return wrap(s, m.effectiveWidth())
 }
 
 // back moves the wizard to the previous step. Nothing needs undoing: the
@@ -200,10 +210,17 @@ func (m run) updateRunType(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m run) viewRunType() string {
-	var b strings.Builder
-	b.WriteString(title(m.stepLabel(stepRunType) + ": Pick a run type"))
+	head := m.wrapped(title(m.stepLabel(stepRunType) + ": Pick a run type"))
+	foot := m.wrapped(help("(up/down to move, enter to select, q to quit)"))
+	desc := m.note(RunTypes[m.cursor].Description)
 
-	start, end := visibleRange(len(RunTypes), m.cursor, m.listRows(runTypeChrome))
+	// The chrome constant assumes one line each for the header, footer and
+	// description; wrapping can make any of them taller.
+	chrome := runTypeChrome + extraRows(head) + extraRows(foot) + extraRows(desc)
+	start, end := visibleRange(len(RunTypes), m.cursor, m.listRows(chrome))
+
+	var b strings.Builder
+	b.WriteString(head)
 
 	if start > 0 {
 		fmt.Fprintf(&b, "%s\n", dimStyle.Render(fmt.Sprintf("  ... %d more above", start)))
@@ -211,14 +228,14 @@ func (m run) viewRunType() string {
 	for i := start; i < end; i++ {
 		fmt.Fprintf(&b, "%s %s\n", cursorFor(i, m.cursor), highlight(RunTypes[i].Name, i == m.cursor))
 		if i == m.cursor {
-			fmt.Fprintf(&b, "    %s\n", dimStyle.Render(RunTypes[i].Description))
+			fmt.Fprintf(&b, "%s\n", desc)
 		}
 	}
 	if end < len(RunTypes) {
 		fmt.Fprintf(&b, "%s\n", dimStyle.Render(fmt.Sprintf("  ... %d more below", len(RunTypes)-end)))
 	}
 
-	b.WriteString(help("(up/down to move, enter to select, q to quit)"))
+	b.WriteString(foot)
 	return b.String()
 }
 
@@ -257,7 +274,7 @@ func (m run) viewJobSet() string {
 		idx := i + 1
 		fmt.Fprintf(&b, "%s %s\n", cursorFor(idx, m.cursor), highlight(js.Name, idx == m.cursor))
 		if idx == m.cursor {
-			fmt.Fprintf(&b, "    %s\n", dimStyle.Render(js.Description))
+			fmt.Fprintf(&b, "%s\n", m.note(js.Description))
 		}
 	}
 	b.WriteString(help("(up/down to move, enter to select, esc to go back, q to quit)"))
@@ -299,12 +316,17 @@ func (m run) viewExcludes() string {
 	names := AllJobNames()
 	var b strings.Builder
 
-	b.WriteString(title(fmt.Sprintf("%s: Exclude any jobs? (e.g. to avoid recent repeats) [%d excluded]",
+	head := m.wrapped(title(fmt.Sprintf("%s: Exclude any jobs? (e.g. to avoid recent repeats) [%d excluded]",
 		m.stepLabel(stepExcludes), len(m.excludes))))
+	foot := m.wrapped(help("(up/down to move, space to toggle, enter to continue, esc to go back, q to quit)"))
 
-	// The full roster is 20-odd rows, which overflows a short terminal, so
-	// only a window around the cursor is drawn.
-	start, end := visibleRange(len(names), m.cursor, m.listRows(excludesChrome))
+	b.WriteString(head)
+
+	// The full roster is 20-odd rows, which overflows a short terminal, so only
+	// a window around the cursor is drawn. Header and footer can wrap on a
+	// narrow one, which costs further rows.
+	chrome := excludesChrome + extraRows(head) + extraRows(foot)
+	start, end := visibleRange(len(names), m.cursor, m.listRows(chrome))
 
 	if start > 0 {
 		fmt.Fprintf(&b, "%s\n", dimStyle.Render(fmt.Sprintf("     ... %d more above", start)))
@@ -320,7 +342,7 @@ func (m run) viewExcludes() string {
 		fmt.Fprintf(&b, "%s\n", dimStyle.Render(fmt.Sprintf("     ... %d more below", len(names)-end)))
 	}
 
-	b.WriteString(help("(up/down to move, space to toggle, enter to continue, esc to go back, q to quit)"))
+	b.WriteString(foot)
 	return b.String()
 }
 
@@ -385,11 +407,11 @@ func (m run) viewOptions() string {
 	option(optExtraJobs, "Extra Jobs (one Advance job)", valueStyle.Render(yesNo(m.extraJobs)))
 	option(optForbidden, "Forbidden (a job is crossed out in the Void)", valueStyle.Render(forbiddenName(m.forbidden)))
 
-	fmt.Fprintf(&b, "\n  %s\n", dimStyle.Render(restrictionRules[m.restriction]))
+	fmt.Fprintf(&b, "\n%s\n", m.note(restrictionRules[m.restriction]))
 
 	// Shown for information only - the run type decides it, so it gets no
 	// cursor row.
-	fmt.Fprintf(&b, "  %s\n", dimStyle.Render(fmt.Sprintf(
+	fmt.Fprintf(&b, "%s\n", m.note(fmt.Sprintf(
 		"Special jobs (Freelancer/Mime): %s, fixed by the %s run type.", yesNo(m.specialAllowed()), m.runType)))
 
 	b.WriteString(help("(up/down to move, space to toggle, enter to finish, esc to go back, q to quit)"))
@@ -478,6 +500,39 @@ func (m run) listRows(chrome int) int {
 		return defaultListRows
 	}
 	return max(m.height-chrome, minListRows)
+}
+
+// effectiveWidth is the width every view wraps to: the terminal's own, but never
+// narrower than minTextWidth, and zero while the size is still unknown. Deciding
+// the floor here once means an indented block can subtract from it without the
+// floor being applied a second time and pushing the line back over.
+func (m run) effectiveWidth() int {
+	if m.width <= 0 {
+		return 0
+	}
+	return max(m.width, minTextWidth)
+}
+
+// wrapped fits a block of view text to the terminal width.
+func (m run) wrapped(s string) string {
+	return wrap(s, m.effectiveWidth())
+}
+
+// note renders the dimmed, indented explanation under a highlighted list item,
+// wrapped to whatever width is left after the indent.
+func (m run) note(text string) string {
+	const indent = "    "
+
+	width := m.effectiveWidth()
+	if width > 0 {
+		width -= len(indent)
+	}
+
+	lines := strings.Split(wrap(text, width), "\n")
+	for i, line := range lines {
+		lines[i] = indent + dimStyle.Render(line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // visibleRange returns the [start, end) bounds of a scrolling window of rows

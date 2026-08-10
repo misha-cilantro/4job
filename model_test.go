@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"charm.land/lipgloss/v2"
 )
 
 func TestVisibleRangeKeepsCursorOnScreen(t *testing.T) {
@@ -83,6 +86,103 @@ func TestRunTypeViewFitsTerminal(t *testing.T) {
 			lines := strings.Count(m.viewRunType(), "\n") + 1
 			if lines > height {
 				t.Errorf("height %d, cursor %d: view is %d lines", height, cursor, lines)
+			}
+		}
+	}
+}
+
+// everyView renders each step of a fully-populated run, so a width or height
+// check can sweep all of them.
+func everyView(t *testing.T, width, height int) map[string]string {
+	t.Helper()
+
+	m := run{
+		width: width, height: height,
+		runType: "Onion", // its description is one of the longest
+		excludes: []string{"bard", "beastmaster", "berserker", "black mage", "blue mage",
+			"cannoneer", "chemist", "dancer", "dragoon", "freelancer"},
+		restriction: restrictUpgrade,
+		fifthJob:    true,
+		extraJobs:   true,
+		forbidden:   forbiddenRolled,
+	}
+	m.name = generateName(m)
+
+	out := map[string]string{}
+	for _, step := range []struct {
+		name string
+		step int
+		max  int
+	}{
+		{"runType", stepRunType, len(RunTypes) - 1},
+		{"jobSet", stepJobSet, len(JobSets)},
+		{"excludes", stepExcludes, len(AllJobNames()) - 1},
+		{"options", stepOptions, optCount - 1},
+		{"summary", stepSummary, 0},
+	} {
+		// Render at both ends of the list and in the middle: the cursor decides
+		// which description is shown, and descriptions are the longest text.
+		for _, cursor := range []int{0, step.max / 2, step.max} {
+			at := m
+			at.step, at.cursor = step.step, cursor
+			out[fmt.Sprintf("%s@%d", step.name, cursor)] = at.render()
+		}
+	}
+	return out
+}
+
+// TestViewsFitTerminalWidth is the width counterpart to the height tests: no
+// rendered line may be wider than the terminal, on any step, at any width down
+// to the minTextWidth floor.
+func TestViewsFitTerminalWidth(t *testing.T) {
+	for _, width := range []int{minTextWidth, 30, 40, 55, 80, 120, 200} {
+		for name, view := range everyView(t, width, 40) {
+			for i, line := range strings.Split(view, "\n") {
+				// lipgloss.Width measures display columns, ignoring style codes.
+				if got := lipgloss.Width(line); got > width {
+					t.Errorf("width %d, %s line %d is %d columns: %q",
+						width, name, i+1, got, line)
+				}
+			}
+		}
+	}
+}
+
+// TestVeryNarrowTerminalsClampRatherThanShred records what happens below the
+// floor: lines stay at minTextWidth instead of wrapping to a couple of
+// characters each, so the view overflows sideways rather than becoming a column
+// of syllables.
+func TestVeryNarrowTerminalsClampRatherThanShred(t *testing.T) {
+	for _, width := range []int{1, 8, minTextWidth - 1} {
+		for name, view := range everyView(t, width, 40) {
+			for i, line := range strings.Split(view, "\n") {
+				if got := lipgloss.Width(line); got > minTextWidth {
+					t.Errorf("width %d, %s line %d is %d columns, above the %d floor: %q",
+						width, name, i+1, got, minTextWidth, line)
+				}
+			}
+		}
+	}
+}
+
+// TestViewsFitTerminalHeight re-checks the height budget now that wrapping can
+// make the header, footer and description taller than one line each. A narrow
+// terminal spends more rows on that chrome, so it needs more height before the
+// list can fit — hence the floor below, which is minListRows plus the most
+// chrome any step draws once wrapped.
+func TestViewsFitTerminalHeight(t *testing.T) {
+	const heightFloor = 18
+
+	for _, width := range []int{40, 80, 120} {
+		for _, height := range []int{heightFloor, 24, 50} {
+			for name, view := range everyView(t, width, height) {
+				// Only the scrolling steps promise to fit a given height.
+				if !strings.HasPrefix(name, "runType") && !strings.HasPrefix(name, "excludes") {
+					continue
+				}
+				if got := countLines(view); got > height {
+					t.Errorf("width %d height %d: %s is %d lines\n%s", width, height, name, got, view)
+				}
 			}
 		}
 	}
