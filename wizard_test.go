@@ -205,6 +205,41 @@ func TestWizardSkipsJobSetStepWhenLocked(t *testing.T) {
 	}
 }
 
+// TestWizardCannotToggleSpecialJobs checks the options step offers no way to
+// turn special jobs on. It used to be a togglable row, which let a Normal run
+// roll Freelancer or Mime.
+func TestWizardCannotToggleSpecialJobs(t *testing.T) {
+	m := newRun()
+	m, _ = press(t, m, downTo(indexOfRunType(t, "Normal"))...)
+	m, _ = press(t, m, special(tea.KeyEnter)) // run type
+	m, _ = press(t, m, special(tea.KeyEnter)) // job set: (none)
+	m, _ = press(t, m, special(tea.KeyEnter)) // excludes: none
+	if m.step != stepOptions {
+		t.Fatalf("step is %d, want stepOptions", m.step)
+	}
+
+	// Toggle every reachable row, from every cursor position, several times.
+	for range 3 {
+		for cursor := 0; cursor < optCount+2; cursor++ {
+			m, _ = press(t, m, special(tea.KeySpace), special(tea.KeyDown))
+		}
+	}
+
+	if m.specialAllowed() {
+		t.Error("special jobs became allowed on a Normal run")
+	}
+
+	res, err := pickJobs(m)
+	if err != nil {
+		t.Fatalf("pickJobs: %v", err)
+	}
+	for _, job := range res.Jobs {
+		if IsSpecialJob(job) {
+			t.Errorf("rolled special job %q on a Normal run", job)
+		}
+	}
+}
+
 func TestWizardCursorStaysInBounds(t *testing.T) {
 	// Hold "down" well past the end of each list; the views index by cursor,
 	// so an unclamped cursor would panic. View() is called each time to prove

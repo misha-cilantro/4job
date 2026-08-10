@@ -50,6 +50,115 @@ func TestSpecialJobsRollableWhenRunTypeAllowsThem(t *testing.T) {
 	t.Fatalf("never rolled a special job in %d Meteor runs", iterations)
 }
 
+// TestSpecialJobsReachAnyCrystal checks the rule that Freelancer and Mime are
+// "available from any Crystal". They used to sit in the wind and water pools,
+// which confined Freelancer to Wind slots and Mime to Water ones. Tested at the
+// pool level because no run type draws a single crystal per slot *and* allows
+// special jobs, so a whole-run roll can't distinguish this.
+func TestSpecialJobsReachAnyCrystal(t *testing.T) {
+	for _, crystal := range []string{"wind", "water", "fire", "earth"} {
+		got := poolIntersection(PoolRef{crystal}, nil, true)
+		for _, job := range SpecialJobs() {
+			if !slices.Contains(got, job) {
+				t.Errorf("%q is not available to a %s slot: %v", job, crystal, got)
+			}
+		}
+	}
+
+	// And absent when the run doesn't allow them.
+	for _, crystal := range []string{"wind", "water", "fire", "earth"} {
+		for _, job := range poolIntersection(PoolRef{crystal}, nil, false) {
+			if IsSpecialJob(job) {
+				t.Errorf("%q leaked into a %s slot with special jobs off", job, crystal)
+			}
+		}
+	}
+}
+
+// TestOnlyDeclaredRunTypesRollSpecials is the restriction: special jobs are not
+// a player option, so a run type that doesn't declare allowSpecial can never
+// produce one.
+func TestOnlyDeclaredRunTypesRollSpecials(t *testing.T) {
+	for _, rt := range RunTypes {
+		m := run{runType: rt.Name}
+
+		if m.specialAllowed() != rt.AllowSpecial {
+			t.Errorf("%s: specialAllowed() = %t, want %t (the run type decides)",
+				rt.Name, m.specialAllowed(), rt.AllowSpecial)
+		}
+		if rt.AllowSpecial {
+			continue
+		}
+
+		for range iterations {
+			for _, job := range mustPick(t, m).Jobs {
+				if IsSpecialJob(job) {
+					t.Fatalf("%s rolled special job %q but doesn't declare allowSpecial", rt.Name, job)
+				}
+			}
+		}
+	}
+}
+
+// TestDuplicatesForcedWhereRequired pins the two selections that require
+// duplicates. Team 375 needs them because it fixes two jobs per side of the 750
+// split; Classic because its six-job pool is treated the same way, which the
+// wiki implies without stating.
+func TestDuplicatesForcedWhereRequired(t *testing.T) {
+	if !(run{runType: "Classic"}).duplicatesLocked() {
+		t.Error("Classic must force Allow Duplicates on")
+	}
+	if !(run{runType: "Normal", jobSet: "Team 375"}).duplicatesLocked() {
+		t.Error("Team 375 must force Allow Duplicates on")
+	}
+
+	// Forcing is a property of the selection, not of the step order, so it must
+	// hold whichever run type Team 375 is applied to.
+	for _, rt := range RunTypes {
+		if rt.NoJobSetSelect {
+			continue
+		}
+		m := run{runType: rt.Name, jobSet: "Team 375"}
+		if !m.duplicatesLocked() || !m.duplicatesAllowed() {
+			t.Errorf("%s + Team 375 does not force Allow Duplicates", rt.Name)
+		}
+	}
+}
+
+// TestSpecialJobsIgnoreJobSets checks that special jobs are "available
+// regardless of Job Sets" - they're in neither the 750 nor the no750 pool, so
+// filtering them through a job set would make them unreachable.
+func TestSpecialJobsIgnoreJobSets(t *testing.T) {
+	m := run{runType: "Meteor", jobSet: "Team 750"}
+	if !m.specialAllowed() {
+		t.Fatal("Meteor should allow special jobs")
+	}
+
+	for range iterations * 4 {
+		for _, job := range mustPick(t, m).Jobs {
+			if IsSpecialJob(job) {
+				return
+			}
+		}
+	}
+	t.Errorf("no special job appeared in %d Meteor + Team 750 runs", iterations*4)
+}
+
+func TestSpecialJobsCanStillBeExcluded(t *testing.T) {
+	m := run{runType: "Meteor", excludes: SpecialJobs()}
+	for range iterations {
+		res := mustPick(t, m)
+		if len(res.Notes) != 0 {
+			t.Fatalf("unexpected relaxation: %v", res.Notes)
+		}
+		for _, job := range res.Jobs {
+			if IsSpecialJob(job) {
+				t.Fatalf("rolled excluded special job %q", job)
+			}
+		}
+	}
+}
+
 func TestJobSetRestrictsEveryJob(t *testing.T) {
 	for _, tc := range []struct{ jobSet, pool string }{
 		{"Team 750", "750"},
@@ -210,7 +319,7 @@ func TestCombinationFeasibleAcceptsRealPairings(t *testing.T) {
 // no non-750 job and onion_earth has no 750 job, so slots 3 and 4 are forced
 // and only the first two slots may vary.
 func TestFeasibleAssignmentsSkipsImpossibleSlots(t *testing.T) {
-	got := feasibleAssignments(onionShaped, JobSetsByName["Team 375"], false)
+	got := feasibleAssignments(onionShaped, JobSetsByName["Team 375"])
 	if len(got) == 0 {
 		t.Fatal("expected at least one workable split")
 	}

@@ -161,55 +161,69 @@ and `data/jobs.json` on 2026-08-09.
 
 ### Matches
 
-- Normal, Typhoon, Volcano, Sirocco, Onsen, Haboob and Meteor pools all match
-  slot for slot.
+- All eight published run types match slot for slot, Geyser included since the
+  fix below.
+- Freelancer and Mime sit in their own `special` pool rather than in a crystal
+  pool, and bypass job set filtering, as the Meteor rule requires.
 - Team 750 and Team No 750 rosters match exactly, all ten jobs each.
 - Team 375's two-and-two split and its forcing of Allow Duplicates match.
 - The `classic` pool matches the six Classic jobs.
 - The four `onion_*` pools match the twelve Onion jobs, slot for slot.
 - The base twenty crystal jobs match.
 
-### Divergences
+### Fixed after this comparison
 
-1. **Geyser slot 4 is wrong.** `runTypes.json` has `["fire", "earth"]`; the
-   rule is Water or Earth. This also contradicts the project's own description
-   of Geyser as favouring Water and Earth. A straight data bug.
+1. **Geyser slot 4** was `["fire", "earth"]`; the rule is Water or Earth. It
+   also contradicted the project's own description of Geyser as favouring Water
+   and Earth. `TestRunTypePoolsMatchPublishedRules` now pins the whole table
+   above, so a future data edit that drifts from the rules fails.
 
-2. **Freelancer is in the `wind` pool and Mime in the `water` pool.** Neither
-   is a crystal job. Two consequences:
-   - A Job Set filters them out, but the rules say they are available
-     "regardless of Job Sets". So Meteor + Team 750 should still be able to roll
-     them, and currently can't.
-   - With Allow Special toggled on for a non-Meteor run, Freelancer can only
-     land in a slot that includes Wind and Mime only in one that includes Water,
-     rather than any slot.
+2. **Freelancer and Mime were crystal jobs**, sitting in the `wind` and `water`
+   pools. They're now a separate `special` pool that every slot may draw from
+   when the run type allows them, and they're exempt from job set filtering, so
+   Meteor + Team 750 can roll them as the rules require.
 
-   Modelling them as a fifth pool that every slot may draw from when special
-   jobs are allowed, exempt from Job Set filtering, would match the rules.
+3. **Allow Special Jobs was a player toggle on every run type.** It's now fixed
+   by the run type: only run types declaring `allowSpecial` can roll Freelancer
+   or Mime, matching the rules, where they're assignable only on Meteor (and
+   "Pure Chaos" per the Freelancer page). The options step shows the setting for
+   information but offers no way to change it.
 
-3. **Classic and Onion are run types here, job sets upstream.** Functionally
+### Accepted deviations
+
+These differ from the official registration form on purpose. This app builds
+bespoke runs, so mirroring the form isn't the goal.
+
+1. **Classic and Onion are run types here, job sets upstream.** Functionally
    close, since both override the crystal mapping anyway, and `noJobSetSelect`
    stops them being combined with a Team set. Worth knowing if a run type and
    job set ever need to compose.
 
-4. **Classic forces Allow Duplicates here.** Nothing in either source says so —
-   Team 375 is the only set documented to enable duplicates. Six jobs across
-   four slots doesn't require it either. Probably wrong, unless it was a
-   deliberate house rule.
+2. **Classic forces Allow Duplicates.** Not stated on either source — Team 375
+   is the only selection documented to enable duplicates — but implied, and
+   kept deliberately as a house rule. Team 375 and Classic are the two
+   selections that force it; `TestDuplicatesForcedWhereRequired` pins both.
 
-5. **Allow Duplicates is offered for every run type here.** Upstream it's
-   Typhoon, Volcano and Meteor only.
+3. **Allow Duplicates is offered for every run type.** Upstream it's Typhoon,
+   Volcano and Meteor only. Harmless where it's meaningless: run types whose
+   slots draw from disjoint pools can't produce a duplicate anyway, so the
+   toggle simply has no effect.
 
-6. **Allow Special Jobs is offered for every run type here.** Upstream,
-   Freelancer and Mime are assignable only in specific run types — Meteor, and
-   "Pure Chaos" per the Freelancer page.
+4. **Excluded jobs** have no upstream equivalent at all. They're the point of
+   the tool — avoiding recent repeats.
 
-7. **Unmodelled modifiers**: Natural / No Restrictions / Upgrade Jobs, Fifth
-   Job, Extra Jobs, Forbidden, Berserker Risk.
+### Not modelled
 
-Items 5 and 6 are only divergences if the goal is to mirror the official
-registration form. This app is for building bespoke runs, so offering both
-toggles more widely may well be the point — noted rather than flagged.
+Split by whether they'd actually change what the picker writes:
+
+- **Play-time rules only** — Natural / No Restrictions / Upgrade Jobs, and
+  Forbidden. These govern which character may use an assigned job and when, not
+  which jobs get rolled. The four files the app writes are unaffected.
+- **Would change the roll** — Fifth Job assigns a fifth job, Extra Jobs assigns
+  one of the Advance jobs (Gladiator, Oracle, Cannoneer), and Berserker Risk
+  weights the roll toward Berserker. All three are genuine picker features, not
+  play-time flavour. Fifth Job and Extra Jobs would also need the writer to stop
+  assuming exactly four slots, and the Advance jobs aren't in `jobs.json` at all.
 
 ### Open question
 

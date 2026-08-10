@@ -11,8 +11,12 @@ import (
 const crystalCount = 4
 
 // tagSpecial marks the nonstandard jobs (Freelancer, Mime) that only some
-// run types allow to be rolled.
-const tagSpecial = "special"
+// run types allow to be rolled, and specialPoolName is the pool holding them.
+// validateData keeps the two in agreement.
+const (
+	tagSpecial      = "special"
+	specialPoolName = "special"
+)
 
 // Job describes a single Final Fantasy 5 job and the descriptive tags used
 // to group it (e.g. "physical", "magic", "rod_breaker").

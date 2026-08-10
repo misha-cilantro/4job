@@ -68,7 +68,7 @@ func jobSetRestrictions(m run, rt RunType) ([][]string, error) {
 		return nil, err
 	}
 
-	return assignCountedPools(rt, js, m.specialAllowed()), nil
+	return assignCountedPools(rt, js), nil
 }
 
 // jobSetCounted is the total number of slots a job set pins to a specific
@@ -114,7 +114,7 @@ func checkCountedSlots(rt RunType, js JobSet) error {
 // workable split existed. If no split works at all, an arbitrary one is
 // returned and the ladder relaxes from there; validateCombinations rejects
 // that case at startup for any pairing the wizard can actually offer.
-func assignCountedPools(rt RunType, js JobSet, allowSpecial bool) [][]string {
+func assignCountedPools(rt RunType, js JobSet) [][]string {
 	var names []string
 	for _, ref := range js.Pools {
 		for range ref.Count {
@@ -123,7 +123,7 @@ func assignCountedPools(rt RunType, js JobSet, allowSpecial bool) [][]string {
 	}
 
 	chosen := names
-	if workable := feasibleAssignments(rt, js, allowSpecial); len(workable) > 0 {
+	if workable := feasibleAssignments(rt, js); len(workable) > 0 {
 		chosen = workable[rand.IntN(len(workable))]
 	}
 
@@ -136,7 +136,11 @@ func assignCountedPools(rt RunType, js JobSet, allowSpecial bool) [][]string {
 
 // feasibleAssignments returns every distinct way to hand a counted job set's
 // pools to rt's slots such that no slot ends up with an empty candidate list.
-func feasibleAssignments(rt RunType, js JobSet, allowSpecial bool) [][]string {
+//
+// Special jobs are ignored here even on run types that allow them. They're
+// exempt from job set restrictions, so counting them would call every
+// assignment workable and hide slots that no job set job can fill.
+func feasibleAssignments(rt RunType, js JobSet) [][]string {
 	var names []string
 	for _, ref := range js.Pools {
 		for range ref.Count {
@@ -158,7 +162,7 @@ func feasibleAssignments(rt RunType, js JobSet, allowSpecial bool) [][]string {
 		seen[key] = true
 
 		for slot, name := range order {
-			if len(poolIntersection(rt.Pools[slot], JobPoolsByName[name].Jobs, allowSpecial)) == 0 {
+			if len(poolIntersection(rt.Pools[slot], JobPoolsByName[name].Jobs, false)) == 0 {
 				return
 			}
 		}
@@ -185,10 +189,12 @@ func permutations(items []string, fn func([]string)) {
 	walk(nil, items)
 }
 
-// combinationFeasible reports whether every slot of rt can be filled under
-// js without abandoning the job set. It assumes the strictest special-job
-// setting the pairing can have, since allowing special jobs only ever adds
-// candidates.
+// combinationFeasible reports whether every slot of rt can be filled under js
+// without abandoning the job set.
+//
+// Special jobs don't count towards feasibility even on run types that allow
+// them, for the reason given on feasibleAssignments: they ignore job sets, so
+// including them would mask a slot that no job set job can fill.
 //
 // For counted job sets it asks whether *any* assignment of the counts to
 // slots works, because assignCountedPools is free to choose one.
@@ -197,7 +203,7 @@ func combinationFeasible(rt RunType, js JobSet) error {
 		if err := checkCountedSlots(rt, js); err != nil {
 			return err
 		}
-		if len(feasibleAssignments(rt, js, rt.AllowSpecial)) == 0 {
+		if len(feasibleAssignments(rt, js)) == 0 {
 			return fmt.Errorf("no way to distribute its pools across the run's %d job slots leaves every slot a legal job",
 				len(rt.Pools))
 		}
@@ -206,7 +212,7 @@ func combinationFeasible(rt RunType, js JobSet) error {
 
 	union := jobSetUnion(js)
 	for slot, pools := range rt.Pools {
-		if len(poolIntersection(pools, union, rt.AllowSpecial)) == 0 {
+		if len(poolIntersection(pools, union, false)) == 0 {
 			return fmt.Errorf("slot %d (%s) has no job in common with it",
 				slot+1, strings.Join(pools, "/"))
 		}
@@ -262,18 +268,32 @@ func pickJobForSlot(m run, slot int, pools PoolRef, jobSetJobs, picked []string)
 func poolIntersection(pools PoolRef, restriction []string, allowSpecial bool) []string {
 	var out []string
 
+	add := func(job string) {
+		if !slices.Contains(out, job) {
+			out = append(out, job)
+		}
+	}
+
 	for _, poolName := range pools {
 		for _, job := range JobPoolsByName[poolName].Jobs {
-			if slices.Contains(out, job) {
-				continue
-			}
-			if !allowSpecial && IsSpecialJob(job) {
+			// Special jobs belong to no crystal, so they're added below for
+			// every slot rather than drawn from the slot's own pools.
+			if IsSpecialJob(job) {
 				continue
 			}
 			if restriction != nil && !slices.Contains(restriction, job) {
 				continue
 			}
-			out = append(out, job)
+			add(job)
+		}
+	}
+
+	// Freelancer and Mime are available from any crystal when the run type
+	// allows them, and the rules exempt them from job set restrictions - a
+	// Team 750 Meteor run can still roll them.
+	if allowSpecial {
+		for _, job := range SpecialJobs() {
+			add(job)
 		}
 	}
 

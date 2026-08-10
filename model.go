@@ -56,14 +56,11 @@ func (m run) duplicatesAllowed() bool {
 	return m.allowDuplicates || m.duplicatesLocked()
 }
 
-// specialLocked reports whether the run type forces Allow Special Jobs on.
-func (m run) specialLocked() bool {
-	return m.runTypeDef().AllowSpecial
-}
-
-// specialAllowed is the effective Allow Special Jobs setting.
+// specialAllowed reports whether the run may roll Freelancer or Mime. It's
+// decided entirely by the run type, not by the player: the rules only make
+// them available on run types that declare it, so there's no toggle.
 func (m run) specialAllowed() bool {
-	return m.allowSpecial || m.specialLocked()
+	return m.runTypeDef().AllowSpecial
 }
 
 // stepLabel renders a "Step 2/4" header for step. Run types that skip the
@@ -310,9 +307,10 @@ func (m run) viewExcludes() string {
 
 // --- Step 4: options ---
 
+// Allow Duplicates is the only option the player sets. Special jobs used to be
+// a toggle here too, but they're fixed by the run type.
 const (
 	optDuplicates = iota
-	optSpecial
 	optCount
 )
 
@@ -327,15 +325,8 @@ func (m run) updateOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case " ", "space":
-		switch m.cursor {
-		case optDuplicates:
-			if !m.duplicatesLocked() {
-				m.allowDuplicates = !m.allowDuplicates
-			}
-		case optSpecial:
-			if !m.specialLocked() {
-				m.allowSpecial = !m.allowSpecial
-			}
+		if m.cursor == optDuplicates && !m.duplicatesLocked() {
+			m.allowDuplicates = !m.allowDuplicates
 		}
 	case "enter":
 		m.name = generateName(m)
@@ -349,8 +340,12 @@ func (m run) viewOptions() string {
 	b.WriteString(fmt.Sprintf("%s: Options\n\n", m.stepLabel(stepOptions)))
 	b.WriteString(fmt.Sprintf("%s Allow Duplicates: %s\n",
 		cursorFor(optDuplicates, m.cursor), toggleLabel(m.duplicatesAllowed(), m.duplicatesLocked())))
-	b.WriteString(fmt.Sprintf("%s Allow Special Jobs (Freelancer/Mime): %s\n",
-		cursorFor(optSpecial, m.cursor), toggleLabel(m.specialAllowed(), m.specialLocked())))
+
+	// Shown for information only - the run type decides it, so it gets no
+	// cursor row.
+	b.WriteString(fmt.Sprintf("\n  Special jobs (Freelancer/Mime): %s\n", yesNo(m.specialAllowed())))
+	b.WriteString(fmt.Sprintf("  Fixed by the %s run type; only some run types make them available.\n", m.runType))
+
 	b.WriteString("\n(up/down to move, space to toggle, enter to finish, esc to go back, q to quit)")
 	return b.String()
 }
@@ -451,15 +446,18 @@ func cursorFor(i, cursor int) string {
 	return " "
 }
 
-func toggleLabel(value, locked bool) string {
-	state := "no"
+func yesNo(value bool) string {
 	if value {
-		state = "yes"
+		return "yes"
 	}
+	return "no"
+}
+
+func toggleLabel(value, locked bool) string {
 	if locked {
-		return state + " (locked)"
+		return yesNo(value) + " (locked)"
 	}
-	return state
+	return yesNo(value)
 }
 
 func containsString(list []string, target string) bool {

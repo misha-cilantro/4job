@@ -12,8 +12,10 @@ import (
  * 1. Pick a run type
  * 2. Pick a job set, or skip if run type has noJobSetSelect == true
  * 3. Optionally add excluded jobs (so you can prevent recent repeats)
- * 4. Options: allowDuplicates (locked if forcesAllowDuplicates == true); allow rolling special jobs (Freelancer and Mime) (locked if allowSpecial == true))
- * 5. Confirm run; optionally name folder for run, otherwise named after the run type + date
+ * 4. Options: allowDuplicates (locked on if the run type or job set has
+ *    forcesAllowDuplicates). Special jobs (Freelancer and Mime) are not an
+ *    option - only run types declaring allowSpecial can roll them.
+ * 5. Confirm run; folder named after the run type + date
  */
 
 // run is the whole wizard state. Whether a modifier is locked is derived
@@ -27,7 +29,6 @@ type run struct {
 	jobSet          string
 	excludes        []string
 	allowDuplicates bool // the user's choice; a run type or job set may force it on
-	allowSpecial    bool // the user's choice; a run type may force it on
 	name            string
 
 	// Terminal size, from the last tea.WindowSizeMsg. Zero until the first

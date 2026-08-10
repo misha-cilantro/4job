@@ -108,10 +108,17 @@ func loadJSON(name string, out interface{}) error {
 	return nil
 }
 
+// SpecialJobs returns the nonstandard jobs (Freelancer, Mime). They belong to
+// no crystal, so they live in their own pool rather than in one of the four,
+// and run types that allow them offer them for every job slot.
+func SpecialJobs() []string {
+	return JobPoolsByName[specialPoolName].Jobs
+}
+
 // IsSpecialJob reports whether a job is one of the nonstandard picks
 // (Freelancer, Mime) that only some run types allow.
 func IsSpecialJob(name string) bool {
-	return slices.Contains(JobsByName[name].Tags, tagSpecial)
+	return slices.Contains(SpecialJobs(), name)
 }
 
 // validateData sanity-checks the data files against each other at startup,
@@ -132,6 +139,22 @@ func validateData() error {
 			if _, ok := JobsByName[job]; !ok {
 				return fmt.Errorf("pool %q references unknown job %q", pool.Name, job)
 			}
+		}
+	}
+
+	if _, ok := JobPoolsByName[specialPoolName]; !ok {
+		return fmt.Errorf("jobPools.json is missing the %q pool", specialPoolName)
+	}
+
+	// The special tag and the special pool must agree. The pool decides which
+	// jobs the picker treats as nonstandard, so a job tagged special but left
+	// out of it would be rolled as an ordinary crystal job.
+	for _, job := range Jobs {
+		tagged := slices.Contains(job.Tags, tagSpecial)
+		pooled := slices.Contains(SpecialJobs(), job.Name)
+		if tagged != pooled {
+			return fmt.Errorf("job %q has %s tag = %t but membership of the %q pool = %t; the two must agree",
+				job.Name, tagSpecial, tagged, specialPoolName, pooled)
 		}
 	}
 

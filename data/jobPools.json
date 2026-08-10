@@ -8,8 +8,7 @@
             "thief",
             "white mage",
             "black mage",
-            "blue mage",
-            "freelancer"
+            "blue mage"
         ]
     },
     {
@@ -20,8 +19,7 @@
             "time mage",
             "summoner",
             "berserker",
-            "mystic knight",
-            "mime"
+            "mystic knight"
         ]
     },
     {
@@ -43,6 +41,14 @@
             "dancer",
             "samurai",
             "chemist"
+        ]
+    },
+    {
+        "name": "special",
+        "description": "Nonstandard jobs that belong to no crystal: Freelancer is available from the start, and Mime comes from the Sunken Walse Tower. Run types that allow them offer them for any job slot, and job sets do not filter them out.",
+        "jobs": [
+            "freelancer",
+            "mime"
         ]
     },
     {

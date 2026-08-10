@@ -42,12 +42,12 @@
     },
     {
         "name": "Geyser",
-        "description": "Favors Water and Earth jobs by mixing in the Wind pool early and the Fire pool late.",
+        "description": "Favors Water and Earth jobs by mixing in the Wind pool early and the Fire pool midway.",
         "pools": [
             ["wind", "water"],
             ["wind", "water", "earth"],
             ["water", "fire", "earth"],
-            ["fire", "earth"]
+            ["water", "earth"]
         ]
     },
     {
