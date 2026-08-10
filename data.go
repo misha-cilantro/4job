@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 )
 
 // dataFS embeds the game data JSON files directly into the binary, so the
@@ -77,6 +78,10 @@ func loadData() error {
 		JobSetsByName[js.Name] = js
 	}
 
+	if err := addTagPools(); err != nil {
+		return err
+	}
+
 	if err := validateData(); err != nil {
 		return err
 	}
@@ -105,6 +110,45 @@ func loadJSON(name string, out interface{}) error {
 	if err := json.Unmarshal(raw, out); err != nil {
 		return fmt.Errorf("parsing %s: %w", name, err)
 	}
+	return nil
+}
+
+// tagPoolPrefix marks pools synthesised from a job tag. Deriving them keeps the
+// tags in jobs.json load-bearing: a job set can restrict a slot to "every job
+// tagged magic" without a second hand-maintained job list to drift from it.
+const tagPoolPrefix = "tag:"
+
+// addTagPools registers one pool per distinct job tag, named tag:<name>. The
+// prefix keeps them from colliding with the hand-written pools, two of which
+// ("special", "advance") share a name with their tag.
+func addTagPools() error {
+	members := map[string][]string{}
+	var order []string
+
+	for _, job := range Jobs {
+		for _, tag := range job.Tags {
+			name := tagPoolPrefix + tag
+			if _, seen := members[name]; !seen {
+				order = append(order, name)
+			}
+			members[name] = append(members[name], job.Name)
+		}
+	}
+
+	for _, name := range order {
+		if _, clash := JobPoolsByName[name]; clash {
+			return fmt.Errorf("hand-written pool %q collides with a derived tag pool", name)
+		}
+		pool := JobPool{
+			Name: name,
+			Description: fmt.Sprintf("Every job tagged %q. Derived from jobs.json, not written by hand.",
+				strings.TrimPrefix(name, tagPoolPrefix)),
+			Jobs: members[name],
+		}
+		JobPools = append(JobPools, pool)
+		JobPoolsByName[name] = pool
+	}
+
 	return nil
 }
 

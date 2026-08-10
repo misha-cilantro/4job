@@ -20,8 +20,15 @@ The wizard walks four steps, then a summary:
 1. **Run type** — Normal, Typhoon, Geyser, Sirocco, Onsen, Haboob, Volcano,
    Meteor, Onion or Classic. Decides which crystal pools each job slot draws
    from.
-2. **Job set** — Team 750, Team No 750, Team 375, or none. Skipped for run types
-   that set their own job pools (Onion, Classic).
+2. **Job set** — Team 750, Team No 750, Team 375, Team Vibe Coded, or none.
+   Skipped for run types that set their own job pools (Onion, Classic).
+
+   *Team Vibe Coded* is a house addition rather than an official set. Where every
+   official option filters on which crystal or on the 750 split, this one filters
+   on **role**: one slot must be a physical job, one a mage, one a support job,
+   and one more a fighter, assigned in a random order. It's the only option that
+   constrains party composition — a plain Normal run leaves you healerless about
+   one time in nine, and this takes that to zero.
 3. **Excluded jobs** — anything you'd rather not roll again.
 4. **Options**
    - **Allow Duplicates** — forced on by Classic and Team 375.

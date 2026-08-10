@@ -21,5 +21,15 @@
             { "pool": "no750", "count": 2 }
         ],
         "forcesAllowDuplicates": true
+    },
+    {
+        "name": "Team Vibe Coded",
+        "description": "Ships a party that compiles. One slot must be a physical job, one a mage, one a support job, and one more a fighter - assigned in a random order. No healerless parties, no all-caster parties, no reading the docs first. Not an official Four Job Fiesta job set.",
+        "pools": [
+            { "pool": "tag:physical", "count": 1 },
+            { "pool": "tag:magic", "count": 1 },
+            { "pool": "tag:support", "count": 1 },
+            { "pool": "tag:combat", "count": 1 }
+        ]
     }
 ]

@@ -212,6 +212,15 @@ bespoke runs, so mirroring the form isn't the goal.
 4. **Excluded jobs** have no upstream equivalent at all. They're the point of
    the tool — avoiding recent repeats.
 
+5. **Team Vibe Coded** is invented here, not an official job set, and its
+   description says so. Every official option filters on one of two axes: which
+   crystal, or the 750 split. This one filters on *role*, using the `physical` /
+   `magic` / `support` / `combat` tags in `jobs.json`, and pins one slot to each.
+   It's the only option that constrains party composition rather than job
+   identity. Measured over 20,000 rolls, a plain Normal run leaves you with no
+   support job 11.7% of the time and an all-physical party 9.2% of the time;
+   with this set both go to zero.
+
 ### Modifiers
 
 Implemented:

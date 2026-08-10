@@ -2,6 +2,7 @@ package main
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -79,6 +80,43 @@ func TestSpecialJobsAreNotCrystalJobs(t *testing.T) {
 
 	if want := []string{"freelancer", "mime"}; !slices.Equal(SpecialJobs(), want) {
 		t.Errorf("SpecialJobs() = %v, want %v", SpecialJobs(), want)
+	}
+}
+
+// TestTagPoolsMirrorTheTags checks the derived pools stay in step with
+// jobs.json. They're generated rather than hand-written precisely so they can't
+// drift, so this is really a guard on the generator.
+func TestTagPoolsMirrorTheTags(t *testing.T) {
+	seen := 0
+	for _, pool := range JobPools {
+		tag, ok := strings.CutPrefix(pool.Name, tagPoolPrefix)
+		if !ok {
+			continue
+		}
+		seen++
+
+		var want []string
+		for _, job := range Jobs {
+			if slices.Contains(job.Tags, tag) {
+				want = append(want, job.Name)
+			}
+		}
+		if !slices.Equal(pool.Jobs, want) {
+			t.Errorf("pool %q holds %v, want every job tagged %q: %v", pool.Name, pool.Jobs, tag, want)
+		}
+		if len(want) == 0 {
+			t.Errorf("pool %q is empty", pool.Name)
+		}
+	}
+
+	// The roles Team Vibe Coded needs, at minimum.
+	for _, tag := range []string{"physical", "magic", "support", "combat"} {
+		if _, ok := JobPoolsByName[tagPoolPrefix+tag]; !ok {
+			t.Errorf("no derived pool for the %q tag", tag)
+		}
+	}
+	if seen == 0 {
+		t.Error("no tag pools were derived at all")
 	}
 }
 

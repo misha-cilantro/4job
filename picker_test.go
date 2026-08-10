@@ -329,6 +329,73 @@ func TestTeam375SplitsTwoAndTwo(t *testing.T) {
 	}
 }
 
+// vibeRoles are the four tags Team Vibe Coded assigns one slot each.
+var vibeRoles = []string{"physical", "magic", "support", "combat"}
+
+func hasRole(jobs []string, role string) bool {
+	return slices.ContainsFunc(jobs, func(j string) bool {
+		return slices.Contains(JobsByName[j].Tags, role)
+	})
+}
+
+// TestVibeCodedGuaranteesEveryRole is the whole point of the set: it removes the
+// healerless and all-caster parties a plain run can hand you.
+func TestVibeCodedGuaranteesEveryRole(t *testing.T) {
+	for _, rt := range RunTypes {
+		if rt.NoJobSetSelect {
+			continue // the wizard can't pair a job set with these
+		}
+		if rt.AllowSpecial {
+			continue // see TestVibeCodedYieldsToSpecialJobs
+		}
+
+		m := run{runType: rt.Name, jobSet: "Team Vibe Coded"}
+		for range 200 {
+			res := mustPick(t, m)
+			if len(res.Notes) > 0 {
+				// A relaxation gave up a constraint and said so in the note.
+				continue
+			}
+			for _, role := range vibeRoles {
+				if !hasRole(res.Jobs(), role) {
+					t.Fatalf("%s: no %s job in %v", rt.Name, role, res.Jobs())
+				}
+			}
+		}
+	}
+}
+
+// TestPlainRunsCanLackARole is the baseline the set exists to fix. Without it a
+// Normal run leaves you healerless around one time in nine.
+func TestPlainRunsCanLackARole(t *testing.T) {
+	m := run{runType: "Normal"}
+	for range iterations * 2 {
+		if !hasRole(mustPick(t, m).Jobs(), "support") {
+			return
+		}
+	}
+	t.Error("expected at least one Normal run with no support job; if this stops " +
+		"happening, Team Vibe Coded no longer changes anything")
+}
+
+// TestVibeCodedYieldsToSpecialJobs records the one hole in the guarantee. Special
+// jobs ignore job sets by rule, so on Meteor a Freelancer can land in the slot
+// that was meant to cover support or magic.
+func TestVibeCodedYieldsToSpecialJobs(t *testing.T) {
+	m := run{runType: "Meteor", jobSet: "Team Vibe Coded"}
+	if !m.specialAllowed() {
+		t.Fatal("Meteor should allow special jobs")
+	}
+
+	for range iterations * 4 {
+		res := mustPick(t, m)
+		if !hasRole(res.Jobs(), "support") {
+			return // a special job displaced the support slot, as documented
+		}
+	}
+	t.Log("no special job displaced a role slot in this sample; the guarantee held")
+}
+
 func TestExcludedJobsAreAvoidedWhenPossible(t *testing.T) {
 	excludes := []string{"knight", "monk", "thief"}
 	m := run{runType: "Normal", excludes: excludes}
