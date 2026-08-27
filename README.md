@@ -1,6 +1,6 @@
 # Intro
 
-Hamlo! This me, the human, writing. I wanted a little more flexibility than the
+Hamlo! This is me, Misha the human, writing. I wanted a little more flexibility than the
 official Four Job Fiesta site provides, and I wanted to learn some go, and I'm
 supposed to get LLM-literate for the day job. So, this is the result.
 
