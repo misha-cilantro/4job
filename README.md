@@ -1,3 +1,17 @@
+# Intro
+
+Hamlo! This me, the human, writing. I wanted a little more flexibility than the
+official Four Job Fiesta site provides, and I wanted to learn some go, and I'm
+supposed to get LLM-literate for the day job. So, this is the result.
+
+Run it, pick what kind of run you want, exclude jobs you just played with. It'll
+make a folder with your run. Open each text file as you reach the appropriate
+crystal just like you would on the website.
+
+Please consider still donating to [Four Job Fiesta's charity](https://donate.tiltify.com/236d46a5-eb52-4afd-b11f-516bda3febd1/express/amount) :)
+
+Everything below here is Claude's generated docs.
+
 # 4job
 
 A terminal wizard for building a bespoke [Four Job Fiesta](https://wiki.fourjobfiesta.com/wiki/index.php?title=Main_Page)
